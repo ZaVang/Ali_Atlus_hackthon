@@ -8,12 +8,25 @@ import type {
 
 export class ProviderUnavailableError extends Error {}
 
+interface AtlasSegment {
+  carrier?: string;
+  flightNumber?: string;
+  depAirport?: string;
+  depTime?: string;
+  arrAirport?: string;
+  arrTime?: string;
+  duration?: number;
+}
+
 interface AtlasRouting {
   fid?: string;
   routingIdentifier?: string;
   adultPrice?: number;
   adultTax?: number;
   currency?: string;
+  /** Structured outbound legs returned by search.do (verified against a live
+   * Sandbox response on 2026-08-25; see scripts/atrip-inspect.mjs). */
+  fromSegments?: AtlasSegment[];
 }
 
 export class SandboxAtlasFlightProvider implements AtlasFlightProvider {
@@ -60,7 +73,7 @@ export class SandboxAtlasFlightProvider implements AtlasFlightProvider {
       source: "atlas-sandbox",
       origin: input.origin,
       destination: input.destination,
-      segments: parseSegmentsFromIdentifier(routing.routingIdentifier),
+      segments: mapSegments(routing.fromSegments),
       totalPrice: (routing.adultPrice ?? 0) + (routing.adultTax ?? 0),
       currency: routing.currency ?? "USD",
       routingIdentifier: routing.routingIdentifier,
@@ -68,31 +81,35 @@ export class SandboxAtlasFlightProvider implements AtlasFlightProvider {
   }
 }
 
-/**
- * Best-effort segment extraction: the base64 payload inside routingIdentifier
- * embeds legs like "PVG-D73331--KUL-202609100135-202609100715-Cheapest".
- * The field between the flight number and arrival airport is sometimes empty,
- * so it must not be treated as a required cabin / booking-class token.
- * TODO: replace with documented offer fields once a full sample is captured.
- */
-function parseSegmentsFromIdentifier(identifier?: string): FlightSegment[] {
-  if (!identifier) return [];
-  try {
-    const payload = identifier.split(".")[0];
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    const legs = [...decoded.matchAll(/([A-Z]{3})-([A-Z0-9]{2})(\d{2,4})-[^-]*-([A-Z]{3})-(\d{12})-(\d{12})/g)];
-    return legs.map((m) => ({
-      departureAirport: m[1],
-      arrivalAirport: m[4],
-      carrier: m[2],
-      flightNumber: `${m[2]}${m[3]}`,
-      departureTime: toIso(m[5]),
-      arrivalTime: toIso(m[6]),
-      durationMinutes: diffMinutes(m[5], m[6]),
-    }));
-  } catch {
-    return [];
-  }
+/** Map the structured `fromSegments` legs from search.do onto FlightSegment.
+ * Times arrive as compact local timestamps ("202609090405"). Legs missing a
+ * required field are dropped rather than guessed. */
+function mapSegments(fromSegments?: AtlasSegment[]): FlightSegment[] {
+  if (!Array.isArray(fromSegments)) return [];
+  return fromSegments.flatMap((segment) => {
+    if (
+      typeof segment.depAirport !== "string" ||
+      typeof segment.arrAirport !== "string" ||
+      typeof segment.depTime !== "string" ||
+      typeof segment.arrTime !== "string" ||
+      typeof segment.flightNumber !== "string"
+    ) {
+      return [];
+    }
+    return [{
+      departureAirport: segment.depAirport,
+      arrivalAirport: segment.arrAirport,
+      carrier: typeof segment.carrier === "string" && segment.carrier.length > 0
+        ? segment.carrier
+        : segment.flightNumber.replace(/\d+$/, ""),
+      flightNumber: segment.flightNumber,
+      departureTime: toIso(segment.depTime),
+      arrivalTime: toIso(segment.arrTime),
+      durationMinutes: typeof segment.duration === "number" && segment.duration > 0
+        ? segment.duration
+        : diffMinutes(segment.depTime, segment.arrTime),
+    }];
+  });
 }
 
 function toIso(compact: string): string {

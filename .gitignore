@@ -15,5 +15,8 @@ coverage/
 # Local verification screenshots (legacy exploration; not part of the product)
 verify-screenshots/
 
+# Local inspection sample (one-off ATRIP response capture, may carry pricing)
+atrip-sample.json
+
 # IDE-generated repo wiki
 .qoder/

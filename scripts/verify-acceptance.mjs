@@ -118,6 +118,24 @@ check(
   "behaviour: disclosed fallback sources stay visibly distinct from live research",
   integritySource.includes("disclosed fallback input") && readSrc("../vite.config.ts").includes("disclosed: true"),
 );
+const viteSource = readSrc("../vite.config.ts");
+check(
+  "behaviour: research retries are bounded at two rounds and disclosed",
+  viteSource.includes("let attempts = 1;") && viteSource.includes("attempts = 2;") && viteSource.includes("retryQuery") && !viteSource.includes("attempts = 3"),
+);
+check(
+  "behaviour: the client whitelists retry telemetry before showing it",
+  readSrc("providers/bailian-agent.ts").includes("body.attempts === 1 || body.attempts === 2"),
+);
+check(
+  "behaviour: a second evidence round is visibly disclosed in the UI",
+  integritySource.includes("Search rounds") && integritySource.includes("Round-2 query"),
+);
+const sandboxSource = readSrc("providers/sandbox-atlas.ts");
+check(
+  "behaviour: ATRIP segments map from structured fromSegments, not identifier regex guessing",
+  sandboxSource.includes("mapSegments(routing.fromSegments)") && !sandboxSource.includes("parseSegmentsFromIdentifier"),
+);
 
 // --- Report -----------------------------------------------------------------
 for (const name of passes) console.log(`  ok  ${name}`);

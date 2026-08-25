@@ -182,6 +182,31 @@ function connectionResearchProxy(): Plugin {
         const model = env.LLM_MODEL || env.DASHSCOPE_MODEL || "qwen-plus";
         const baseUrl = (env.LLM_BASE_URL ?? env.DASHSCOPE_BASE_URL ?? "https://dashscope.aliyuncs.com/compatible-mode/v1").replace(/\/$/, "");
         const useDeepSeek = env.VITE_AGENT_PROVIDER === "deepseek";
+        // Search ranking alone is not evidence. Both official and community
+        // results must make a transfer/process claim before the model or
+        // traveller sees them; this excludes vouchers, check-in pages, social
+        // posts and other keyword-adjacent noise.
+        const harvestRelevant = (result: { results?: Array<{ title?: unknown; url?: unknown; content?: unknown }> }, tier: "official" | "community") => {
+          if (!Array.isArray(result.results)) return [];
+          return result.results.flatMap((entry) => {
+            if (typeof entry.title !== "string" || typeof entry.url !== "string" || typeof entry.content !== "string") return [];
+            const evidenceText = `${entry.title} ${entry.content}`;
+            const isNonTransferPage = /cheap flights?|travel voucher|mobile app|check[ -]?in/i.test(entry.title);
+            const hasConnectionClaim = /fly[ -]?thru|baggage[ -]?(?:through|transfer)|minimum[ -]?connecting|\bmct\b|self[ -]?transfer|transit[ -]?(?:procedure|process|requirement)/i.test(evidenceText);
+            const hasProcessContext = /terminal|transfer|immigration|customs|re-?check|check[ -]?in|boarding|connection time/i.test(evidenceText);
+            if (isNonTransferPage || !hasConnectionClaim || !hasProcessContext) return [];
+            return [{ tier, title: entry.title.slice(0, 160), url: entry.url, summary: entry.content.slice(0, 700) }];
+          });
+        };
+        const searchTavily = async (query: string, tier: "official" | "community") => {
+          const tavily = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
+            body: JSON.stringify({ query, search_depth: "basic", max_results: 3, include_answer: false, include_raw_content: false, ...(tier === "official" ? { include_domains: ["airasia.com"] } : {}) }),
+          });
+          if (!tavily.ok) throw new Error(`Tavily HTTP ${tavily.status}`);
+          return (await tavily.json()) as { results?: Array<{ title?: unknown; url?: unknown; content?: unknown }> };
+        };
         const system = [
           "You are the Connection Integrity research agent.",
           "You must make two search_connection_evidence calls before producing a decision: one official and one community search. Focus them on the actual connection airport, terminal process, airline and transfer time.",
@@ -238,29 +263,20 @@ function connectionResearchProxy(): Plugin {
               ? `AirAsia Fly-Thru ${airport} Terminal 2 ${flights.join(" ")} minimum connection time`
               : `${airport} Terminal 2 AirAsia international transfer time Fly-Thru passenger experience`;
             const candidateQuery = typeof args.query === "string" && args.query.length >= 8 && args.query.length <= 180 ? args.query : fallbackQuery;
-            const tavily = await fetch("https://api.tavily.com/search", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
-              body: JSON.stringify({ query: candidateQuery, search_depth: "basic", max_results: 3, include_answer: false, include_raw_content: false, ...(tier === "official" ? { include_domains: ["airasia.com"] } : {}) }),
-            });
-            if (!tavily.ok) throw new Error(`Tavily HTTP ${tavily.status}`);
-            const result = await tavily.json() as { results?: Array<{ title?: unknown; url?: unknown; content?: unknown }> };
-            const normalized = Array.isArray(result.results) ? result.results.flatMap((entry) => {
-              if (typeof entry.title !== "string" || typeof entry.url !== "string" || typeof entry.content !== "string") return [];
-              // Search ranking alone is not evidence. Both official and
-              // community results must make a transfer/process claim before
-              // the model or traveller sees them; this excludes vouchers,
-              // check-in pages, social posts and other keyword-adjacent noise.
-              const evidenceText = `${entry.title} ${entry.content}`;
-              const isNonTransferPage = /cheap flights?|travel voucher|mobile app|check[ -]?in/i.test(entry.title);
-              const hasConnectionClaim = /fly[ -]?thru|baggage[ -]?(?:through|transfer)|minimum[ -]?connecting|\bmct\b|self[ -]?transfer|transit[ -]?(?:procedure|process|requirement)/i.test(evidenceText);
-              const hasProcessContext = /terminal|transfer|immigration|customs|re-?check|check[ -]?in|boarding|connection time/i.test(evidenceText);
-              if (isNonTransferPage || !hasConnectionClaim || !hasProcessContext) return [];
-              const source = { tier, title: entry.title.slice(0, 160), url: entry.url, summary: entry.content.slice(0, 700) };
-              sources.push(source);
-              return [source];
-            }) : [];
+            const normalized = harvestRelevant(await searchTavily(candidateQuery, tier), tier);
+            sources.push(...normalized);
             toolMessages.push({ role: "tool", tool_call_id: item.id, content: JSON.stringify({ tier, results: normalized }) });
+          }
+          // Bounded second round: if round 1 returned no relevant official
+          // source, the agent reformulates the official query exactly once
+          // and searches again. The loop never exceeds two evidence rounds,
+          // and the retry is disclosed in the returned telemetry.
+          let attempts = 1;
+          let retryQuery: string | undefined;
+          if (!sources.some((source) => source.tier === "official")) {
+            attempts = 2;
+            retryQuery = `AirAsia ${airport} Fly-Thru connecting flight policy transit transfer minimum time support`;
+            sources.push(...harvestRelevant(await searchTavily(retryQuery, "official"), "official"));
           }
           // The KUL demo's published policy is a durable, explicit product
           // input. Use it only as a disclosed fallback when search returns no
@@ -303,7 +319,7 @@ function connectionResearchProxy(): Plugin {
           if (typeof content !== "string" || content.length === 0) throw new Error("Agent returned no final research brief");
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ model: typeof final.model === "string" ? final.model : model, content, sources }));
+          res.end(JSON.stringify({ model: typeof final.model === "string" ? final.model : model, content, sources, attempts, retryQuery }));
         } catch (error) {
           res.statusCode = 502;
           res.setHeader("Content-Type", "application/json");

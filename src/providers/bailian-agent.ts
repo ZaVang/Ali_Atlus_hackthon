@@ -158,7 +158,7 @@ export class BailianAgentProvider implements AgentProvider {
         const message = typeof payload === "object" && payload !== null && typeof (payload as { msg?: unknown }).msg === "string" ? (payload as { msg: string }).msg : "unavailable";
         throw new Error(`Connection research returned HTTP ${res.status}: ${message}`);
       }
-      const body = payload as { model?: unknown; content?: unknown; sources?: unknown };
+      const body = payload as { model?: unknown; content?: unknown; sources?: unknown; attempts?: unknown; retryQuery?: unknown };
       if (typeof body.content !== "string" || body.content.length === 0) throw new Error("Connection research returned no content");
       const parsed: unknown = JSON.parse(body.content);
       if (typeof parsed !== "object" || parsed === null) throw new Error("Connection research JSON was not an object");
@@ -201,6 +201,11 @@ export class BailianAgentProvider implements AgentProvider {
           durationMs: Date.now() - startedAt,
           fromCache: false,
           completedAt: new Date().toISOString(),
+          // Whitelist-validated telemetry: the server reports how many
+          // evidence rounds actually ran (bounded at 2) and, when a second
+          // round ran, the reformulated query it used.
+          attempts: body.attempts === 1 || body.attempts === 2 ? body.attempts : 1,
+          retryQuery: typeof body.retryQuery === "string" && body.retryQuery.length <= 200 ? body.retryQuery : undefined,
         },
       };
     } finally {

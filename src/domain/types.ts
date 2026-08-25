@@ -92,6 +92,12 @@ export interface ConnectionResearchMeta {
   durationMs: number;
   fromCache: boolean;
   completedAt: string;
+  /** Evidence-search rounds actually executed (bounded at 2). Round 2 only
+   * happens when round 1 returned no relevant official source, and uses a
+   * reformulated query. */
+  attempts?: number;
+  /** The reformulated official query used by round 2, when it ran. */
+  retryQuery?: string;
 }
 
 export interface ConnectionContractInput {
