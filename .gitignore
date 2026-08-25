@@ -1,0 +1,19 @@
+# Local secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Local tooling
+.DS_Store
+*.log
+
+# Local verification screenshots (legacy exploration; not part of the product)
+verify-screenshots/
+
+# IDE-generated repo wiki
+.qoder/
