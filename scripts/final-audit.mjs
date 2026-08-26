@@ -173,7 +173,8 @@ console.log("  +8  authorized flight-status + Atlas verify/book/servicing proof 
 console.log("  +5  stable Alibaba Cloud/public deployment and health-check evidence (external)");
 console.log("  +5  Qoder session export and current-product screenshots with provenance (human/external)");
 console.log("  +4  recorded, replayed three-minute demo with the exact mock/live labels (human)");
-console.log("  +3  fresh credentialed Atlas/research run and outcome/novelty validation (human/external)");
+if (hasRecordedLiveSmoke) console.log("  CLOSED  fresh credentialed Atlas/research/standalone smoke is recorded; outcome/novelty validation remains a human Innovation judgment");
+else console.log("  +3  fresh credentialed Atlas/research run and outcome/novelty validation (human/external)");
 
 if (failures.length > 0) {
   console.log(`\nFinal audit FAILED: ${failures.join(", ")}`);
