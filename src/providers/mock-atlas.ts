@@ -1,5 +1,12 @@
 import { fixtureOffersByKey } from "../data/fixtures";
-import type { AtlasFlightProvider, DataSource, FlightOffer, FlightSearchInput } from "../domain/types";
+import type {
+  AtlasFlightProvider,
+  DataSource,
+  FlightOffer,
+  FlightSearchInput,
+  OfferRecheckInput,
+  OfferRecheckResult,
+} from "../domain/types";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -9,5 +16,14 @@ export class MockAtlasFlightProvider implements AtlasFlightProvider {
   async searchOffers(input: FlightSearchInput): Promise<FlightOffer[]> {
     await delay(350); // small artificial latency so loading states stay honest
     return fixtureOffersByKey[`${input.origin}-${input.destination}`] ?? [];
+  }
+
+  async recheckOffer({ offer }: OfferRecheckInput): Promise<OfferRecheckResult> {
+    return {
+      status: "snapshot",
+      source: "mock",
+      routingIdentifier: offer.routingIdentifier,
+      message: "Demo fixture is a snapshot; no live Atlas recheck was made.",
+    };
   }
 }

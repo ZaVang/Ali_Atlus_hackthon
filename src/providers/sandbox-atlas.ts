@@ -4,6 +4,8 @@ import type {
   FlightOffer,
   FlightSearchInput,
   FlightSegment,
+  OfferRecheckInput,
+  OfferRecheckResult,
 } from "../domain/types";
 
 export class ProviderUnavailableError extends Error {}
@@ -29,10 +31,90 @@ interface AtlasRouting {
   fromSegments?: AtlasSegment[];
 }
 
+interface AtlasSearchResponse {
+  status?: unknown;
+  msg?: unknown;
+  routings?: unknown;
+}
+
 export class SandboxAtlasFlightProvider implements AtlasFlightProvider {
   readonly source: DataSource = "atlas-sandbox";
 
   async searchOffers(input: FlightSearchInput): Promise<FlightOffer[]> {
+    const json = await this.requestSearch(input);
+    if (json.status !== 0) {
+      throw new ProviderUnavailableError(`search.do status=${json.status}: ${json.msg ?? "unknown error"}`);
+    }
+
+    if (!Array.isArray(json.routings)) {
+      throw new ProviderUnavailableError("search.do response omitted a routings array");
+    }
+
+    const routings = json.routings as AtlasRouting[];
+    return routings.map((routing, index) => this.mapRouting(routing, input, index));
+  }
+
+  /**
+   * Re-run the already verified, read-only search.do request and require the
+   * exact routingIdentifier to appear again. This intentionally does not call
+   * verify.do: its request/response schema and Sandbox permission are not
+   * exercised in this project yet. Unknown or malformed responses are always
+   * unavailable, never verified.
+   */
+  async recheckOffer({ offer, search }: OfferRecheckInput): Promise<OfferRecheckResult> {
+    const routingIdentifier = offer.routingIdentifier;
+    if (offer.source !== this.source) {
+      return unavailableRecheck("Offer is not an Atlas Sandbox offer; no live recheck was made.", routingIdentifier);
+    }
+    if (typeof routingIdentifier !== "string" || routingIdentifier.length === 0) {
+      return unavailableRecheck("Atlas offer has no routingIdentifier; freshness cannot be verified.");
+    }
+
+    let json: AtlasSearchResponse;
+    try {
+      json = await this.requestSearch(search);
+    } catch (error) {
+      return unavailableRecheck(String(error), routingIdentifier);
+    }
+
+    // The only accepted success marker is the confirmed numeric status value.
+    // A string "0", missing status, or any vendor-specific unknown state is
+    // deliberately not a verified result.
+    if (json.status !== 0) {
+      return unavailableRecheck(`search.do did not return status=0 (received ${String(json.status)}).`, routingIdentifier);
+    }
+    if (!Array.isArray(json.routings)) {
+      return unavailableRecheck("search.do response omitted a routings array; offer was not verified.", routingIdentifier);
+    }
+
+    const returnedIdentifiers = json.routings
+      .filter(isRecord)
+      .map((routing) => routing.routingIdentifier)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    if (returnedIdentifiers.length === 0 && json.routings.length > 0) {
+      return unavailableRecheck("search.do returned routings without usable routingIdentifier values.", routingIdentifier);
+    }
+
+    if (returnedIdentifiers.includes(routingIdentifier)) {
+      return {
+        status: "verified",
+        source: this.source,
+        routingIdentifier,
+        checkedAt: new Date().toISOString(),
+        message: "Fresh Atlas search.do returned the same routingIdentifier.",
+      };
+    }
+
+    return {
+      status: "not-found",
+      source: this.source,
+      routingIdentifier,
+      checkedAt: new Date().toISOString(),
+      message: "Fresh Atlas search.do completed, but the routingIdentifier was not returned.",
+    };
+  }
+
+  private async requestSearch(input: FlightSearchInput): Promise<AtlasSearchResponse> {
     const payload = {
       tripType: "1",
       requestId: `ui-${Date.now()}`,
@@ -58,13 +140,14 @@ export class SandboxAtlasFlightProvider implements AtlasFlightProvider {
     }
     if (!res.ok) throw new ProviderUnavailableError(`Atlas proxy answered HTTP ${res.status}`);
 
-    const json = await res.json();
-    if (json.status !== 0) {
-      throw new ProviderUnavailableError(`search.do status=${json.status}: ${json.msg ?? "unknown error"}`);
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch (error) {
+      throw new ProviderUnavailableError(`Atlas proxy returned invalid JSON: ${String(error)}`);
     }
-
-    const routings: AtlasRouting[] = json.routings ?? [];
-    return routings.map((routing, index) => this.mapRouting(routing, input, index));
+    if (!isRecord(json)) throw new ProviderUnavailableError("Atlas proxy returned a non-object JSON payload");
+    return json as AtlasSearchResponse;
   }
 
   private mapRouting(routing: AtlasRouting, input: FlightSearchInput, index: number): FlightOffer {
@@ -79,6 +162,14 @@ export class SandboxAtlasFlightProvider implements AtlasFlightProvider {
       routingIdentifier: routing.routingIdentifier,
     };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function unavailableRecheck(message: string, routingIdentifier?: string): OfferRecheckResult {
+  return { status: "unavailable", source: "unavailable", routingIdentifier, message };
 }
 
 /** Map the structured `fromSegments` legs from search.do onto FlightSegment.

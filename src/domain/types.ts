@@ -31,9 +31,29 @@ export interface FlightSearchInput {
   currency?: string;
 }
 
+/** Result of a non-destructive offer freshness check. `verified` means only
+ * that a fresh search returned the same routingIdentifier; it is not a PNR,
+ * Fly-Thru, booking, payment, or servicing confirmation. */
+export type OfferRecheckStatus = "verified" | "not-found" | "snapshot" | "unavailable";
+
+export interface OfferRecheckInput {
+  offer: FlightOffer;
+  search: FlightSearchInput;
+}
+
+export interface OfferRecheckResult {
+  status: OfferRecheckStatus;
+  /** `unavailable` is used when no live claim can be made. */
+  source: DataSource;
+  routingIdentifier?: string;
+  checkedAt?: string;
+  message: string;
+}
+
 export interface AtlasFlightProvider {
   readonly source: DataSource;
   searchOffers(input: FlightSearchInput): Promise<FlightOffer[]>;
+  recheckOffer(input: OfferRecheckInput): Promise<OfferRecheckResult>;
 }
 
 /** UI label describing where displayed data came from. */

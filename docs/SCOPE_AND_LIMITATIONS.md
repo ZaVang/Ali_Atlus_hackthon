@@ -40,16 +40,21 @@ Capabilities that competing products have and this prototype honestly lacks, eac
 | Calibrated probability model 校准概率模型 | No historical airport-process sample exists in this prototype. 原型内没有历史机场流程样本。 | Actuarial/data partnership (insurance-grade OTP and transfer-process data); only then would a probability surface be honest. 与保险精算级数据方合作；只有届时概率呈现才是诚实的。 |
 | Global inventory 全球库存 | ATRIP Sandbox covers selected Asia-Pacific routes; empty legs degrade to an honest banner. Sandbox 仅覆盖部分亚太航线；空结果降级为诚实提示。 | Broader ATRIP coverage or a second GDS/NDC source behind the same provider adapter. 更广的 ATRIP 覆盖，或经同一 provider 适配器接入第二数据源。 |
 | Real rebooking / payment 真实改签/支付 | All airline actions are consent-required demo proposals; nothing is booked. 所有航司动作都是需同意的演示提案，不产生订单。 | Enable only once Atlas booking/servicing capabilities open; until then the servicing surface stays simulation-only by design. 待 Atlas booking/servicing 能力开放后再接入；在此之前服务面按设计保持纯模拟。 |
+| Native Atlas `verify.do` chain Atlas 原生 verify 链 | The endpoint's request/response schema and Sandbox permission have not been exercised; forwarding it would create a false success surface. 端点请求/响应 schema 与 Sandbox 权限尚未实测，直接转发会制造虚假成功面。 | Exercise the documented `routingIdentifier` → `sessionId` → `orderNo` chain with an authorized non-destructive contract before exposing it. 在暴露该能力前，用授权的非破坏性 contract 实测该链路。 |
 
 ## 3. Data plane reality / 数据面现状
 
 - **ATRIP Sandbox coverage:** selected Asia-Pacific routes. The live chooser (`Try an itinerary`) states this on screen: when a leg returns nothing, the page shows an honest banner instead of inventing offers.
 - **The main case is a snapshot.** The PVG → KUL → SIN offers (115 min / $133.91 and 185 min / $148.10) were observed from ATRIP Sandbox on **2026-08-24** and are labelled as a snapshot in the UI. Fares and schedules are date-dependent; they are demo evidence, not a live quote.
 - **Refreshing the fixture:** re-run the two ATRIP searches for the same routing/date, verify the returned pairs still satisfy the contract (screening floor, currency, timetable fields), then update `src/data/connection-integrity.ts` and re-run `npm run verify`, which re-checks the fixture numbers and every disclosure label against the built bundle.
+- **Offer freshness recheck:** the live Itinerary Lab repeats the verified, read-only `search.do` request for each independent leg and marks an offer `verified` only when numeric `status == 0` and the exact `routingIdentifier` is returned again. `not-found` and all malformed/unknown/error responses remain non-verified. Mock mode returns `snapshot` and does not contact Atlas. This is an availability/freshness signal only; it does not confirm a single PNR, Fly-Thru protection, price lock, booking, payment, or servicing.
+- **Native verification remains unavailable:** `verify.do`, `order.do`, `pay.do`, and servicing routes are still not exercised. The proxy rejects those endpoints, so no UI state can imply that booking or payment is complete.
 
 - **ATRIP Sandbox 覆盖**：部分亚太航线。实时试用面（`Try an itinerary`）在界面上如实说明：某一段搜不到结果时显示诚实提示，而不是编造报价。
 - **主案例是快照**。PVG → KUL → SIN 报价（115 分钟 / $133.91 与 185 分钟 / $148.10）观察于 **2026-08-24** 的 ATRIP Sandbox，界面标注为 snapshot。价格与时刻依赖日期，是演示证据而非实时报价。
 - **fixture 刷新方式**：对同一航线/日期重跑两次 ATRIP 搜索，确认返回配对仍满足契约（筛选线、币种、时刻字段），再更新 `src/data/connection-integrity.ts` 并运行 `npm run verify`——它会重新核对 fixture 数值与全部披露标签。
+- **报价新鲜度复核**：实时 Itinerary Lab 对每个独立航段重复已验证的只读 `search.do` 请求；只有 numeric `status == 0` 且返回 exact `routingIdentifier` 时才标为 `verified`。`not-found` 以及所有 malformed/unknown/error 响应都保持非 verified。mock 模式返回 `snapshot` 且不访问 Atlas。这只是可用性/新鲜度信号，不确认单一 PNR、Fly-Thru 保障、锁价、预订、支付或售后。
+- **原生 verify 仍不可用**：`verify.do`、`order.do`、`pay.do` 与售后端点仍未实测。proxy 会拒绝这些端点，因此 UI 不会暗示预订或支付已完成。
 
 ## 4. Cost and latency / 成本与延迟
 

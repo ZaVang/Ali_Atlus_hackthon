@@ -24,6 +24,7 @@ const tsc = spawnSync(
     "src/domain/rubric.ts",
     "src/domain/itinerary-rules.ts",
     "src/providers/bailian-agent.ts",
+    "src/providers/mock-atlas.ts",
     "src/providers/sandbox-atlas.ts",
     "--outDir", outDir,
     "--module", "esnext",
@@ -47,6 +48,9 @@ if (tsc.status !== 0) {
 const bailianOut = join(root, outDir, "providers", "bailian-agent.js");
 writeFileSync(bailianOut, readFileSync(bailianOut, "utf8").replace(/from "\.\/sandbox-atlas"/g, 'from "./sandbox-atlas.js"'));
 
+const mockAtlasOut = join(root, outDir, "providers", "mock-atlas.js");
+writeFileSync(mockAtlasOut, readFileSync(mockAtlasOut, "utf8").replace(/from "\.\.\/data\/fixtures"/g, 'from "../data/fixtures.js"'));
+
 // The compiled itinerary-rules.js imports the plain-ESM policy registry by
 // relative path; place the exact source module next to it.
 writeFileSync(
@@ -60,7 +64,7 @@ writeFileSync(join(root, outDir, "package.json"), JSON.stringify({ type: "module
 
 const run = spawnSync(
   process.execPath,
-  ["--test", "tests/rubric.test.mjs", "tests/itinerary-rules.test.mjs", "tests/whitelist.test.mjs", "tests/connection-policy.test.mjs"],
+  ["--test", "tests/rubric.test.mjs", "tests/itinerary-rules.test.mjs", "tests/whitelist.test.mjs", "tests/connection-policy.test.mjs", "tests/sandbox-atlas.test.mjs"],
   { cwd: root, stdio: "inherit" },
 );
 

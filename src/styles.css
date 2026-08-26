@@ -72,6 +72,13 @@ code {
   padding: 1px 5px;
 }
 
+.routing-id {
+  color: var(--navy);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .muted {
   color: var(--ink-soft);
 }
@@ -979,6 +986,26 @@ code {
 .preset-row .btn {
   font-size: 13px;
   padding: 7px 10px;
+}
+
+.recheck-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px dashed var(--sky);
+  border-radius: 10px;
+  background: rgba(47, 127, 209, 0.04);
+}
+
+.recheck-panel .card-title-row {
+  margin-bottom: 0;
+}
+
+.recheck-results {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 
 /* ---------- Connection Integrity Agent ---------- */

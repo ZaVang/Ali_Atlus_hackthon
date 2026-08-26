@@ -112,6 +112,13 @@ async function offlinePhaseA() {
     json = await res.json();
     report("POST /api/atlas/search.do → 503 unavailable without Atlas credentials", res.status === 503 && json.status === "unavailable", `status=${res.status}`);
 
+    res = await fetch(`${base}/api/atlas/search.do`);
+    report("GET /api/atlas/search.do → 405", res.status === 405 && res.headers.get("allow") === "POST", `status=${res.status}`);
+
+    res = await post("/api/atlas/verify.do", { routingIdentifier: "not-sent-to-atlas" });
+    json = await res.json();
+    report("POST /api/atlas/verify.do → 404 unavailable while schema is unverified", res.status === 404 && json.status === "unavailable", `status=${res.status}`);
+
     res = await fetch(`${base}/api/unknown`);
     report("unknown /api route → 404", res.status === 404, `status=${res.status}`);
   } finally {

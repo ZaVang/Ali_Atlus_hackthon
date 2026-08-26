@@ -43,6 +43,12 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+// Only routes whose request/response contract is verified in this repository
+// are reachable through the browser proxy. In particular, verify.do/order.do
+// are not silently exposed while their Sandbox schema and permissions remain
+// unexercised.
+const ATLAS_ALLOWED_ENDPOINTS = new Set(["search.do"]);
+
 /**
  * Atlas Sandbox proxy. Forwards POST bodies to `${ATLAS_BASE_URL}/<endpoint>`
  * with client credentials injected server-side, so secrets never reach the
@@ -51,6 +57,21 @@ function sendJson(res, statusCode, payload) {
  */
 export function createAtlasProxyHandler(getEnv) {
   return async (req, res) => {
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      sendJson(res, 405, { status: "error", msg: "Method not allowed" });
+      return;
+    }
+
+    const endpoint = (req.url ?? "").split("?")[0].replace(/^\//, "");
+    if (!ATLAS_ALLOWED_ENDPOINTS.has(endpoint)) {
+      sendJson(res, 404, {
+        status: "unavailable",
+        msg: `Atlas endpoint is not enabled: ${endpoint || "(empty)"}`,
+      });
+      return;
+    }
+
     const env = getEnv();
     const baseUrl = env.ATLAS_BASE_URL;
     const clientId = env.ATLAS_CLIENT_ID;
@@ -63,7 +84,6 @@ export function createAtlasProxyHandler(getEnv) {
       return;
     }
 
-    const endpoint = (req.url ?? "").split("?")[0].replace(/^\//, "");
     const body = await readBody(req);
 
     try {
