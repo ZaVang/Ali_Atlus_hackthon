@@ -25,7 +25,7 @@ export interface ConnectionPolicy {
   label: string;
   /** Connection airports this policy applies to (IATA, uppercase). */
   connectionAirports: string[];
-  /** Carrier/flight prefixes (e.g. "D7", "AK") used for disclosed-fallback eligibility. */
+  /** Carrier/flight prefixes (e.g. "D7", "AK"); entries with prefixes require a matching flight. */
   flightPrefixes: string[];
   publishedMinimumMinutes: number;
   planningBufferMinutes: number;

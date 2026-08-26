@@ -53,13 +53,15 @@ hackathon 主题是 Agentic AI。我们用 Qoder 的方式本身就是 agentic �
 | 4 轮会话记录（2 轮 Quest：task-2f5、task-e19） | Qoder 会话历史 |
 | 4 份 Canvas 阶段报告（叙事研究 / Agent 注入 / 天气扩展 / demo 完成） | Qoder Canvas |
 | 88 张浏览器验证截图（legacy 探索证据，pivot 前旧产品） | `verify-screenshots/legacy/` |
-| 当前产品的 11 张截图（全部就位） | `verify-screenshots/current/`（清单见下） |
+| 当前产品的 11 张截图（预期的 reviewer/Qoder 附件，本 checkout 中不存在） | `verify-screenshots/current/`（清单见下；截图验收前必须附上） |
 | 60 项断言的验收门禁（含 rubric 边界、筛选/排序规则、策略注册表与 brief 白名单的数值化单元测试） | `scripts/verify-acceptance.mjs`（`npm run verify`） |
 | 产品契约 | `docs/CONNECTION_INTEGRITY_DEMO.md` |
 | 评委讲解稿 | `docs/DEMO_WALKTHROUGH.zh-CN.md` |
 | 归档的探索过程（pivot 前文档） | `docs/legacy/` |
 
-### 当前产品截图清单（`verify-screenshots/current/`）
+### 预期的当前产品截图清单（`verify-screenshots/current/`）
+
+下表是附件检查清单，不是文件存在的证明。本仓库 checkout 不包含 `verify-screenshots/current/`；提交前必须由人工/Qoder 附上截图，并把每张截图的 provider/source 路径与实际运行核对一致。
 
 | 文件 | 内容 | 数据路径 |
 |---|---|---|
@@ -73,4 +75,4 @@ hackathon 主题是 Agentic AI。我们用 Qoder 的方式本身就是 agentic �
 | `current-7-honest-banner.png` | 诚实的搜索失败横幅：无实时数据则不出推荐 | Flight = atlas-sandbox 真实搜索 |
 | `current-8-policy-pill.png` | Itinerary Lab Policy pill（AirAsia Fly-Thru · KLIA Terminal 2 · 60 min minimum + 90 min buffer · source 链接），68 个返回配对与组合卡 | Flight = atlas-sandbox 真实搜索 · 策略由 `connection-policies` 注册表解析 |
 | `current-9-scenario-replay.png` | 航司视图 Scenario replay 时间线（四步：3 完成 + 1 进行中）、insufficient 结论、干预提案与来源为 "Scenario replay · demo simulation" 的审计条目 | 确定性 demo fixture 回放（全模拟） |
-| `current-10-hosted-demo.png` | mock 构建的历史首屏截图（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill）；不代表当前公网 URL 可用 | mock 静态产物（无凭据）；新的托管入口需用 `recording-preflight` 验证 |
+| `current-10-hosted-demo.png` | Vercel 托管 mock 构建的真实首屏（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill） | mock 静态托管构建（无凭据） |

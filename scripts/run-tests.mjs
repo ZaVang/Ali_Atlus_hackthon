@@ -60,7 +60,7 @@ writeFileSync(join(root, outDir, "package.json"), JSON.stringify({ type: "module
 
 const run = spawnSync(
   process.execPath,
-  ["--test", "tests/rubric.test.mjs", "tests/itinerary-rules.test.mjs", "tests/whitelist.test.mjs", "tests/connection-policy.test.mjs", "tests/preflight.test.mjs"],
+  ["--test", "tests/rubric.test.mjs", "tests/itinerary-rules.test.mjs", "tests/whitelist.test.mjs", "tests/connection-policy.test.mjs", "tests/server-audit.test.mjs"],
   { cwd: root, stdio: "inherit" },
 );
 

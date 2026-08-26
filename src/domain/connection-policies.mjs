@@ -22,8 +22,8 @@ export const CONNECTION_POLICIES = [
   {
     id: "kul-airasia-flythru",
     label: "AirAsia Fly-Thru · KLIA Terminal 2",
-    // Matching: the connection airport keys the policy; the carrier prefixes
-    // identify itineraries eligible for the Fly-Thru disclosed fallback.
+    // Matching: the connection airport keys the policy and the carrier
+    // prefixes prevent this AirAsia-specific policy from applying elsewhere.
     connectionAirports: ["KUL"],
     flightPrefixes: ["D7", "AK"],
     publishedMinimumMinutes: 60,
@@ -84,8 +84,10 @@ export const GENERIC_QUERY_TEMPLATES = {
 export const NO_POLICY_DISCLOSURE = "No configured connection policy exists for this route; no published minimum or planning buffer is applied.";
 
 /**
- * Resolve the applicable verified policy for an itinerary. Airport match
- * weighs more than carrier prefix match; the highest-scoring entry wins.
+ * Resolve the applicable verified policy for an itinerary. An entry with
+ * carrier prefixes is only applicable when at least one supplied flight
+ * matches a prefix; an airport-only lookup must not borrow an airline-specific
+ * policy for another carrier. The highest-scoring matching entry wins.
  * Illustrative registry templates are intentionally excluded from runtime
  * decisions until their source and parameters are verified. Returns null when
  * nothing operational matches — callers must take the explicit no-policy path.
@@ -97,9 +99,13 @@ export function resolveConnectionPolicy({ connectionAirport = "", flightNumbers 
   let bestScore = 0;
   for (const policy of CONNECTION_POLICIES) {
     if (policy.policySource?.illustrative === true) continue;
+    if (!policy.connectionAirports.includes(airport)) continue;
+    const hasCarrierMatch = policy.flightPrefixes.length === 0
+      || flights.some((flight) => policy.flightPrefixes.some((prefix) => flight.startsWith(prefix)));
+    if (!hasCarrierMatch) continue;
     let score = 0;
-    if (policy.connectionAirports.includes(airport)) score += 2;
-    if (policy.flightPrefixes.length > 0 && flights.some((flight) => policy.flightPrefixes.some((prefix) => flight.startsWith(prefix)))) score += 1;
+    score += 2;
+    if (policy.flightPrefixes.length > 0) score += 1;
     if (score > bestScore) {
       best = policy;
       bestScore = score;

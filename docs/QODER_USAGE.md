@@ -53,13 +53,15 @@ The hackathon theme is Agentic AI. The way we used Qoder is itself agentic: **pl
 | 4 session records (2 Quests: task-2f5, task-e19) | Qoder conversation history |
 | 4 Canvas stage reports (narrative research / agent injection / weather extension / demo completion) | Qoder Canvas |
 | 88 browser-verification screenshots (legacy exploration evidence, pre-pivot product) | `verify-screenshots/legacy/` |
-| 11 current product screenshots (all in place) | `verify-screenshots/current/` (list below) |
+| 11 current product screenshots (expected reviewer/Qoder artifacts; not present in this checkout) | `verify-screenshots/current/` (list below; attach before claiming screenshot acceptance) |
 | Acceptance gate with 60 assertions (includes numeric unit tests for the rubric boundaries, screening/ranking rules, the policy registry and the brief whitelist) | `scripts/verify-acceptance.mjs` (`npm run verify`) |
 | Product contract | `docs/CONNECTION_INTEGRITY_DEMO.md` |
 | Judge walkthrough script | `docs/DEMO_WALKTHROUGH.zh-CN.md` |
 | Archived exploration (pre-pivot docs) | `docs/legacy/` |
 
-### Current product screenshots (`verify-screenshots/current/`)
+### Expected current-product screenshots (`verify-screenshots/current/`)
+
+The table below is an attachment checklist, not evidence that the files exist. This repository checkout does not contain `verify-screenshots/current/`; a human/Qoder reviewer must attach and reconcile these screenshots with the actual provider/source path before submission.
 
 | File | What it shows | Data path |
 |---|---|---|
@@ -73,4 +75,4 @@ The hackathon theme is Agentic AI. The way we used Qoder is itself agentic: **pl
 | `current-7-honest-banner.png` | Honest search-failure banner: no recommendation is generated without live provider data | Flight = atlas-sandbox live search |
 | `current-8-policy-pill.png` | Itinerary Lab Policy pill (AirAsia Fly-Thru · KLIA Terminal 2 · 60 min minimum + 90 min buffer · source link) with 68 returned pairs and combination cards | Flight = atlas-sandbox live search · policy resolved from the `connection-policies` registry |
 | `current-9-scenario-replay.png` | Airline view Scenario replay timeline (four steps, three done + one active) with the insufficient verdict, the intervention proposal and audit entries sourced "Scenario replay · demo simulation" | Deterministic demo fixture replay (fully simulated) |
-| `current-10-hosted-demo.png` | Historical first-screen capture of a mock build (Flight: mock / Agent: mock badges, hero copy, Policy pill); it is not a current public URL claim | Mock static artifact (no credentials); verify any new host with `recording-preflight` |
+| `current-10-hosted-demo.png` | Real first screen of the Vercel-hosted mock build (Flight: mock / Agent: mock badges, hero copy, Policy pill) | Mock static hosted build (no credentials) |

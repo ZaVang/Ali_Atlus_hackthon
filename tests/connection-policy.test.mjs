@@ -34,11 +34,16 @@ test("registry holds at least one non-KUL entry, honestly labelled illustrative"
   assert.equal(PVG_POLICY.disclosedFallback, null, "an unverified entry must not ship a disclosed policy input");
 });
 
-test("resolution hits the KUL policy by connection airport", () => {
+test("resolution hits the KUL policy by airport and matching carrier", () => {
   const resolved = resolveConnectionPolicy({ connectionAirport: "KUL", flightNumbers: ["AK701", "D7323"] });
   assert.equal(resolved?.id, "kul-airasia-flythru");
-  // Airport matching is case-insensitive and does not need flight numbers.
-  assert.equal(resolveConnectionPolicy({ connectionAirport: "kul" })?.id, "kul-airasia-flythru");
+  // Airport and carrier matching are case-insensitive.
+  assert.equal(resolveConnectionPolicy({ connectionAirport: "kul", flightNumbers: ["ak701"] })?.id, "kul-airasia-flythru");
+});
+
+test("an airline-specific policy is not borrowed by an unrelated KUL carrier", () => {
+  assert.equal(resolveConnectionPolicy({ connectionAirport: "KUL", flightNumbers: ["BA2490"] }), null);
+  assert.equal(resolveConnectionPolicy({ connectionAirport: "KUL" }), null);
 });
 
 test("resolution ignores the illustrative PVG entry and takes the no-policy path", () => {

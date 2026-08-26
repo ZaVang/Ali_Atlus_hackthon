@@ -1,15 +1,15 @@
 # Scope and Limitations / 边界与局限
 
-This document states, proactively and honestly, what this product is and is not. Every claim below is checked against the current code and acceptance gates; the runners print the current assertion/test counts at execution time. The authoritative product contract remains [CONNECTION_INTEGRITY_DEMO.md](./CONNECTION_INTEGRITY_DEMO.md). The offline judge/recording workflow is [JUDGE_PREFLIGHT.md](./JUDGE_PREFLIGHT.md).
+This document states, proactively and honestly, what this product is and is not. Every claim below is checked against the current code and acceptance gates (`npm run verify` 60 assertions, `npm run test` 40 cases, `npm run smoke:research` and `npm run smoke:server`). The authoritative product contract remains [CONNECTION_INTEGRITY_DEMO.md](./CONNECTION_INTEGRITY_DEMO.md).
 
-本文档主动、诚实地框定产品边界。下述每条表述都与当前代码和验收门禁核对一致；断言/测试数量以运行时输出为准。离线评委/录制流程见 [JUDGE_PREFLIGHT.md](./JUDGE_PREFLIGHT.md)，权威产品契约仍是 [CONNECTION_INTEGRITY_DEMO.md](./CONNECTION_INTEGRITY_DEMO.md)。
+本文档主动、诚实地框定产品边界。下述每条表述都与当前代码和验收门禁核对一致（`npm run verify` 60 条断言、`npm run test` 40 个用例、`npm run smoke:research` 与 `npm run smoke:server`）。权威产品契约仍是 [CONNECTION_INTEGRITY_DEMO.md](./CONNECTION_INTEGRITY_DEMO.md)。
 
 ## 1. Innovation boundary: one sourced policy, a general mechanism / 创新边界：一条有出处的政策，一套通用机制
 
 The demo's 60 + 90 pair is **the published AirAsia KUL Fly-Thru policy's parameters, carried as one registered entry** — not a universal rule. The mechanism is a configurable evidence-threshold framework:
 
 - The registry lives in `src/domain/connection-policies.mjs`, shared verbatim by the bundled UI and the standalone Node service (`server/logic.mjs`), so dev and deployed behaviour cannot drift.
-- `resolveConnectionPolicy({ connectionAirport, flightNumbers })` resolves the applicable entry per itinerary (airport match weighs more than carrier prefix; the highest-scoring entry wins).
+- `resolveConnectionPolicy({ connectionAirport, flightNumbers })` resolves the applicable entry per itinerary; entries with carrier prefixes require a matching flight, so an airline-specific policy cannot be borrowed by an unrelated carrier.
 - The time-fit rubric, the Itinerary Lab screening/ranking rules, and the server evidence search (official-domain gate, fallback query templates, disclosed policy input) all take their parameters from the resolved entry.
 - Adding a policy for a new airline/airport means **registering one entry** — no rule code changes. The type definition and entry shape are documented in the contract's "Configurable evidence-threshold framework" section.
 
@@ -18,7 +18,7 @@ Coverage, honestly stated: the registry currently ships exactly one sourced entr
 demo 中的 60 + 90 是 **AirAsia KUL Fly-Thru 公开政策的参数，作为注册表中的一条条目存放**——不是通用规则。机制本身是可配置的证据门槛框架：
 
 - 注册表位于 `src/domain/connection-policies.mjs`，UI 打包产物与独立 Node 服务（`server/logic.mjs`）共享同一份模块，开发与部署行为不会漂移。
-- `resolveConnectionPolicy({ connectionAirport, flightNumbers })` 按行程解析适用条目（机场匹配权重高于航司前缀，最高分条目胜出）。
+- `resolveConnectionPolicy({ connectionAirport, flightNumbers })` 按行程解析适用条目；带航司前缀的条目必须命中对应航班，不能被其它航司借用。
 - 时间适配评分、Itinerary Lab 的筛选/排序规则、服务端证据检索（官方域名门、兜底查询模板、披露式政策输入）全部从解析出的条目取参数。
 - 新增一个航司/机场政策只需**注册一条策略条目**，不需要改规则代码。类型定义与条目结构见契约文档的 "Configurable evidence-threshold framework" 一节。
 
@@ -61,11 +61,11 @@ Capabilities that competing products have and this prototype honestly lacks, eac
 
 ## 5. Deployment forms / 部署形态
 
-- **Standalone service (local deployment shape):** `npm run server` runs a dependency-free Node HTTP service (port 8787, `PORT` overridable) that serves the three `/api` endpoints and, after `npm run build`, the built UI from the same process. The Vite dev middlewares mount the exact same handlers, so dev and server behaviour cannot drift. `npm run smoke:server` re-checks the fail-closed shapes. No public cloud deployment is included or verified here.
+- **Standalone service (deployable today):** `npm run server` runs a dependency-free Node HTTP service (port 8787, `PORT` overridable) that serves the three `/api` endpoints and, after `npm run build`, the built UI from the same process. The Vite dev middlewares mount the exact same handlers, so dev and deployed behaviour cannot drift. `npm run smoke:server` re-checks the fail-closed shapes.
 - **Mock static hosting (zero-friction demo):** with `VITE_FLIGHT_PROVIDER=mock` and `VITE_AGENT_PROVIDER=mock`, a static build demonstrates the full governance surface without any credentials. A static build alone does not serve `/api` — that is stated in the README.
 - **Roadmap:** container image / serverless deployment of `server/index.mjs` plus managed caching; no code change to the governance layer is expected because all secrets already live server-side.
 
-- **独立服务（本地部署形态）**：`npm run server` 运行零额外依赖的 Node HTTP 服务（端口 8787，可用 `PORT` 覆盖），同时提供三个 `/api` 端点，并在 `npm run build` 后由同一进程托管 UI。Vite dev 中间件挂载同一套 handler，开发与服务端行为不漂移；`npm run smoke:server` 复核失败关闭形状。本仓库不包含、也未验证公网云部署。
+- **独立服务（今天即可部署）**：`npm run server` 运行零额外依赖的 Node HTTP 服务（端口 8787，可用 `PORT` 覆盖），同时提供三个 `/api` 端点，并在 `npm run build` 后由同一进程托管 UI。Vite dev 中间件挂载同一套 handler，开发与部署行为不漂移；`npm run smoke:server` 复核失败关闭形状。
 - **mock 静态托管（零门槛体验）**：`VITE_FLIGHT_PROVIDER=mock` 且 `VITE_AGENT_PROVIDER=mock` 时，静态构建即可演示完整治理面，无需任何凭据。纯静态构建不提供 `/api`——README 已如实说明。
 - **路线图**：将 `server/index.mjs` 容器化/云函数化并配托管缓存；由于密钥已全部在服务端，治理层代码预期无需改动。
 

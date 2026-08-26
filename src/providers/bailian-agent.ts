@@ -13,6 +13,7 @@ import type {
   ParsedConnectionPreference,
 } from "../domain/types";
 import { ProviderUnavailableError } from "./sandbox-atlas";
+import { resolveConnectionPolicy } from "../domain/connection-policies.mjs";
 
 const SEED = 20260908;
 const PARSE_TIMEOUT_MS = 8_000;
@@ -99,15 +100,6 @@ export function isWhitelistedConnectionBrief(parsed: unknown): parsed is Connect
   const boundedStringArray = (value: unknown, maxItems: number, maxItemLength: number) => Array.isArray(value)
     && value.length <= maxItems
     && value.every((item) => boundedText(item, maxItemLength));
-  const safeResearchUrl = (value: unknown) => {
-    if (typeof value !== "string" || value.length > 2_000) return false;
-    try {
-      const url = new URL(value);
-      return url.protocol === "https:" || url.protocol === "http:";
-    } catch {
-      return false;
-    }
-  };
   if (typeof parsed !== "object" || parsed === null) return false;
   const brief = parsed as {
     connectionFit?: unknown;
@@ -131,13 +123,33 @@ export function isWhitelistedConnectionBrief(parsed: unknown): parsed is Connect
   if (!boundedStringArray(brief.keyFactors, 8, 1_000) || !boundedStringArray(brief.limitations, 8, 1_000)) return false;
   if (brief.sources !== undefined) {
     if (!Array.isArray(brief.sources) || brief.sources.length > 8) return false;
-    for (const item of brief.sources) {
-      if (typeof item !== "object" || item === null) return false;
-      const source = item as { tier?: unknown; title?: unknown; url?: unknown; summary?: unknown; disclosed?: unknown };
-      if ((source.tier !== "official" && source.tier !== "community") || !boundedText(source.title, 300) || !safeResearchUrl(source.url) || !boundedText(source.summary, 2_000) || (source.disclosed !== undefined && typeof source.disclosed !== "boolean")) return false;
-    }
+    if (!brief.sources.every((source) => isWhitelistedConnectionSource(source))) return false;
   }
   return true;
+}
+
+/** A source link may be opened by the browser, so accept only HTTPS origins
+ * without embedded credentials. The server also performs an official-domain
+ * check; this client check protects cached and tampered response paths. */
+export function isSafeResearchUrl(value: unknown): value is string {
+    if (typeof value !== "string" || value.length > 2_000) return false;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && !url.username && !url.password && Boolean(url.hostname);
+    } catch {
+      return false;
+    }
+}
+
+export function isWhitelistedConnectionSource(value: unknown): value is ConnectionResearchSource {
+  if (typeof value !== "object" || value === null) return false;
+  const source = value as { tier?: unknown; title?: unknown; url?: unknown; summary?: unknown; disclosed?: unknown };
+  const boundedText = (item: unknown, maxLength: number) => typeof item === "string" && item.length > 0 && item.length <= maxLength;
+  return (source.tier === "official" || source.tier === "community")
+    && boundedText(source.title, 300)
+    && isSafeResearchUrl(source.url)
+    && boundedText(source.summary, 2_000)
+    && (source.disclosed === undefined || (source.tier === "official" && source.disclosed === true));
 }
 
 function isAbortError(error: unknown): boolean {
@@ -216,15 +228,27 @@ export class BailianAgentProvider implements AgentProvider {
       const parsed: unknown = JSON.parse(body.content);
       if (!isWhitelistedConnectionBrief(parsed)) throw new Error("Agent returned invalid connection assessment");
       const { connectionFit, protectionStatus, recommendedOption, recommendationSummary, assessmentConfidence, rationale, keyFactors, limitations, nextAction } = parsed;
-      const sources: ConnectionResearchSource[] = Array.isArray(body.sources)
-        ? body.sources.flatMap((item): ConnectionResearchSource[] => {
-            if (typeof item !== "object" || item === null) return [];
-            const source = item as Partial<ConnectionResearchSource>;
-            return (source.tier === "official" || source.tier === "community") && typeof source.title === "string" && typeof source.url === "string" && typeof source.summary === "string"
-              ? [{ tier: source.tier, title: source.title, url: source.url, summary: source.summary, disclosed: (source as { disclosed?: unknown }).disclosed === true ? true : undefined }]
-              : [];
-          })
+      const rawSources = body.sources;
+      if (rawSources !== undefined && (!Array.isArray(rawSources) || rawSources.length > 8 || !rawSources.every((item) => isWhitelistedConnectionSource(item)))) {
+        throw new Error("Connection research returned an unsafe source link");
+      }
+      const sources: ConnectionResearchSource[] = Array.isArray(rawSources)
+        ? rawSources.map((item) => ({
+            tier: item.tier,
+            title: item.title,
+            url: item.url,
+            summary: item.summary,
+            disclosed: item.disclosed,
+          }))
         : [];
+      const policy = resolveConnectionPolicy({ connectionAirport: input.connectionAirport, flightNumbers: input.flightNumbers });
+      const remaining = input.scheduledConnectionMinutes - (input.inboundDelayMinutes ?? 0);
+      if (!input.flyThruVerified && protectionStatus === "confirmed") {
+        throw new Error("Connection research claimed protection without a verified booking contract");
+      }
+      if (policy && remaining < policy.publishedMinimumMinutes && connectionFit !== "insufficient") {
+        throw new Error("Connection research contradicted the published minimum time rule");
+      }
       return {
         connectionFit,
         protectionStatus,
