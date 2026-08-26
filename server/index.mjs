@@ -59,6 +59,12 @@ const server = createServer(async (req, res) => {
   try {
     const url = (req.url ?? "").split("?")[0];
 
+    if (url === "/health") {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ status: "ok", service: "connection-integrity-agent", api: "shared-server-logic" }));
+    }
+
     if (url === "/api/agent/chat") return await chatHandler(req, res);
     if (url === "/api/agent/connection-research") return await researchHandler(req, res);
 

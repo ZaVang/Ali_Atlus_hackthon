@@ -62,9 +62,11 @@ const DOC_FILES = [
   "README.zh-CN.md",
   "docs/JUDGE_PREFLIGHT.md",
   "docs/DEMO_VIDEO_SCRIPT.md",
+  "docs/DEMO_VIDEO_EVIDENCE.md",
   "docs/DEMO_WALKTHROUGH.zh-CN.md",
   "docs/CONNECTION_INTEGRITY_DEMO.md",
   "docs/SCOPE_AND_LIMITATIONS.md",
+  "docs/ALIBABA_CLOUD_DEPLOYMENT.md",
 ];
 
 function result(status, name, detail = "") {
@@ -341,6 +343,11 @@ function documentationChecks(mode) {
   const add = (name, ok, detail = "") => checks.push(result(ok ? "PASS" : "FAIL", name, detail));
   const docs = Object.fromEntries(DOC_FILES.map((file) => [file, readText(file)]));
   for (const file of DOC_FILES) add(`documentation exists: ${file}`, docs[file].length > 0, "file missing or empty");
+  add(
+    "container deployment contract is present",
+    existsSync(join(root, "Dockerfile")) && existsSync(join(root, ".dockerignore")) && docs["docs/ALIBABA_CLOUD_DEPLOYMENT.md"].includes("/health"),
+    "Dockerfile, secret exclusion and health contract must exist before external deployment",
+  );
 
   const publicDocs = Object.entries(docs).filter(([file]) => !file.includes("legacy"));
   const staleUrlHits = publicDocs.filter(([, text]) => /temporary-prompt|claim-deployment/i.test(text)).map(([file]) => file);

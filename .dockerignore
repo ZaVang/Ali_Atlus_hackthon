@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.git/
+.env
+.env.local
+.env.*.local
+verify-screenshots/
+.qoder/
+.test-build/
+coverage/
+*.log

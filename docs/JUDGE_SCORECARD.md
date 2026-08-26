@@ -57,7 +57,7 @@ The deliberate absence of a calibrated missed-connection probability is `WAIVED`
 | The two-sided demo is deterministic, labels simulation, records consent/proposal events, and does not silently execute a booking. | `src/components/ConnectionIntegrityDemo.tsx`, `docs/CONNECTION_INTEGRITY_DEMO.md` | 5 / 5 — `PASS [automated]` | Local source and acceptance checks cover the flow; human replay is still useful. |
 | A zero-credential mock build is reproducible and clearly separates mock, snapshot, and live labels. | `scripts/build-mock.mjs`, `src/data/fixtures.ts`, `npm run build:mock` | 4 / 4 — `PASS [automated]` | The static build intentionally has no `/api`; this is disclosed. |
 | A stable public entry is deployed with a health check and a known expiry/ownership state. | README temporary-link disclosure; no deployment manifest or health evidence in the checkout. | 0 / 5 — `BLOCKED` | Requires an Alibaba Cloud/public deployment, ownership, and a reviewer-accessible health check. A temporary URL is not durable proof. |
-| The formal three-minute recording is captured, replayed, and matches the shipped build and labels. | `docs/DEMO_VIDEO_SCRIPT.md` is a script/material plan, not a video file. | 4 / 6 — `HUMAN` | Human recording and replay are still required; the script alone cannot pass this acceptance. |
+| The formal three-minute recording is captured, replayed, and matches the shipped build and labels. | `verify-screenshots/current/demo-submission.mp4`, `docs/DEMO_VIDEO_EVIDENCE.md`, `docs/DEMO_VIDEO_SCRIPT.md` | 4 / 6 — `HUMAN` | A 180-second visual artifact exists and is machine-verified; human narration/replay acceptance is still required. |
 
 ## 95-point gap closure
 

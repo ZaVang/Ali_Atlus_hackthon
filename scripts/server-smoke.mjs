@@ -94,6 +94,10 @@ async function offlinePhaseA() {
   try {
     await waitForServer();
 
+    let health = await fetch(`${base}/health`);
+    let healthJson = await health.json();
+    report("GET /health → standalone service is ready", health.status === 200 && healthJson.status === "ok" && healthJson.service === "connection-integrity-agent", `status=${health.status}`);
+
     let res = await fetch(`${base}/api/agent/chat`, { method: "GET" });
     report("GET /api/agent/chat → 405 + Allow: POST", res.status === 405 && res.headers.get("allow") === "POST", `status=${res.status}`);
 

@@ -151,8 +151,8 @@ evidenceCheck(
 evidenceCheck(
   "formal three-minute recording is captured and replayed by a human",
   false,
-  "BLOCKED",
-  videoFiles.length > 0 ? "a video file exists but requires human replay acceptance" : "DEMO_VIDEO_SCRIPT.md is a script, not a recording",
+  videoFiles.length > 0 ? "HUMAN" : "BLOCKED",
+  videoFiles.length > 0 ? "a 180-second visual artifact exists but requires human narration/replay acceptance" : "DEMO_VIDEO_SCRIPT.md is a script, not a recording",
 );
 
 const score = {
