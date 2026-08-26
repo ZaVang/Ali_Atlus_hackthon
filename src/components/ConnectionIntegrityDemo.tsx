@@ -1,12 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import type { ConnectionContractBrief, ConnectionFit } from "../domain/types";
+import type { ConnectionContractBrief, ConnectionFit, ConnectionResearchSource } from "../domain/types";
 import { kulConnectionCase } from "../data/connection-integrity";
 import { useDemoSession } from "../state/session";
 import { isWhitelistedConnectionBrief } from "../providers/bailian-agent";
 import { resolveConnectionPolicy } from "../domain/connection-policies.mjs";
 import { ProvenancePill, formatDuration, formatMoney } from "./shared";
+import AgentTrace from "./AgentTrace";
+import {
+  applyAgentTraceEvent,
+  createAgentTraceState,
+  traceSourceForProvider,
+  type AgentTraceEventInput,
+  type AgentTraceState,
+  type AgentTraceSource,
+} from "../domain/agent-trace";
 
 type Side = "traveller" | "airline";
+type CandidateKey = "shortest" | "buffered";
 type Candidate = typeof kulConnectionCase.shortest | typeof kulConnectionCase.buffered;
 type AgentContractBrief = ConnectionContractBrief & { model: string };
 
@@ -150,6 +160,44 @@ const SCENARIO_REASSESSMENT: AgentContractBrief = {
   model: "demo agent fixture",
 };
 
+function scenarioForCandidate(candidateKey: CandidateKey): AirlineScenario {
+  if (candidateKey === "shortest") return AIRLINE_SCENARIO;
+  const candidate = kulConnectionCase.buffered;
+  const publishedMinimum = DEMO_POLICY?.publishedMinimumMinutes ?? kulConnectionCase.flyThruMinimumMinutes;
+  const comfortTarget = publishedMinimum + (DEMO_POLICY?.planningBufferMinutes ?? 90);
+  const remaining = candidate.connectionMinutes - AIRLINE_SCENARIO.delayMinutes;
+  return {
+    ...AIRLINE_SCENARIO,
+    name: "Inbound delay +60 min · selected longer-buffer itinerary",
+    steps: [
+      { label: "Inject delay event · 注入延误事件", detail: "A simulated inbound delay of +60 min lands on the traveller-selected longer-buffer connection." },
+      { label: "Re-assess connection · 触发重评估", detail: `The selected ${candidate.connectionMinutes}-minute window leaves ${remaining} minutes: above the ${publishedMinimum}-minute published minimum, but below the ${comfortTarget}-minute comfort target — tight, not insufficient.` },
+      { label: "Prepare traveller notice · 生成旅客提示", detail: "No longer-buffer fixture is invented. The airline prepares a consent-gated notice for the selected routing." },
+      { label: "Offer recorded · consent pending · 记录并等待同意", detail: "The notice is written to the audit trail; the traveller must still review and consent." },
+    ],
+  };
+}
+
+function scenarioReassessmentForCandidate(candidateKey: CandidateKey): AgentContractBrief {
+  if (candidateKey === "shortest") return SCENARIO_REASSESSMENT;
+  const candidate = kulConnectionCase.buffered;
+  const publishedMinimum = DEMO_POLICY?.publishedMinimumMinutes ?? kulConnectionCase.flyThruMinimumMinutes;
+  const comfortTarget = publishedMinimum + (DEMO_POLICY?.planningBufferMinutes ?? 90);
+  const remaining = candidate.connectionMinutes - AIRLINE_SCENARIO.delayMinutes;
+  return {
+    connectionFit: "tight",
+    protectionStatus: "not-confirmed",
+    recommendedOption: "selected",
+    recommendationSummary: "Keep the selected longer-buffer itinerary: after the simulated delay it remains above the published minimum, but extra buffer would help.",
+    assessmentConfidence: "high",
+    rationale: `The reported delay leaves ${remaining} minutes, above the ${publishedMinimum}-minute Fly-Thru connection rule at KUL but below the ${comfortTarget}-minute planning target. This is a time-fit assessment, not an estimate of missed-connection probability.`,
+    keyFactors: [`${remaining} planned minutes compared with the ${comfortTarget}-minute comfort target`, "Inbound operational delay"],
+    limitations: ["Live flight-status feed is simulated in this demo", "No longer-buffer recovery fixture is available in this scenario"],
+    nextAction: "Ask the traveller whether to keep this routing; do not apply any change without consent.",
+    model: "demo agent fixture",
+  };
+}
+
 function writeCachedResearch(key: string, brief: AgentContractBrief) {
   try {
     const cached: CachedResearch = { expiresAt: Date.now() + CONNECTION_RESEARCH_CACHE_TTL_MS, brief };
@@ -173,6 +221,65 @@ const FIT_COPY: Record<ConnectionFit, { title: string; className: string; badgeC
 function fallbackFit(delayMinutes: number, scheduledConnectionMinutes: number): ConnectionFit {
   const remaining = scheduledConnectionMinutes - delayMinutes;
   return remaining < kulConnectionCase.flyThruMinimumMinutes ? "insufficient" : "tight";
+}
+
+function evidenceTraceSource(
+  sources: ConnectionResearchSource[] | undefined,
+  tier: ConnectionResearchSource["tier"],
+  fromCache: boolean,
+  providerSource: AgentTraceSource,
+): AgentTraceSource {
+  const matching = sources?.filter((source) => source.tier === tier) ?? [];
+  if (fromCache && matching.length > 0) return "snapshot";
+  if (matching.some((source) => source.disclosed !== true)) return "live";
+  if (matching.length > 0) return "snapshot";
+  return providerSource === "mock" ? "mock" : "unavailable";
+}
+
+function evidenceTraceSummary(
+  sources: ConnectionResearchSource[] | undefined,
+  tier: ConnectionResearchSource["tier"],
+  fromCache: boolean,
+  providerSource: AgentTraceSource,
+): string {
+  const matching = sources?.filter((source) => source.tier === tier) ?? [];
+  if (providerSource === "mock" && !sources) return "Mock mode uses the disclosed demo evidence path; no web search is executed.";
+  if (matching.length === 0) return `The ${tier} evidence search completed without an accepted source; no ${tier} claim is shown.`;
+  if (fromCache) return `${matching.length} ${tier} source${matching.length === 1 ? "" : "s"} reused from the browser's bounded cache; the underlying run was completed earlier.`;
+  if (matching.every((source) => source.disclosed === true)) return `${matching.length} disclosed ${tier} policy input${matching.length === 1 ? "" : "s"}; this is a product input, not a live search hit.`;
+  return `${matching.length} accepted ${tier} source${matching.length === 1 ? "" : "s"} returned by the bounded evidence search.`;
+}
+
+function createInitialConnectionTraceState(): AgentTraceState {
+  let state = createAgentTraceState();
+  const seed = (event: AgentTraceEventInput) => {
+    state = applyAgentTraceEvent(state, { ...event, runId: 0 });
+  };
+  seed({
+    stage: "preference-interpretation",
+    status: "complete",
+    source: "user",
+    summary: "The default cheapest card is visible; changing cards is an explicit traveller preference, not hidden profile inference.",
+  });
+  seed({
+    stage: "flight-search",
+    status: "complete",
+    source: "snapshot",
+    summary: "Recorded ATRIP Sandbox offer snapshot for PVG → KUL → SIN is loaded for the repeatable connection story.",
+  });
+  seed({
+    stage: "policy-rubric-gate",
+    status: "complete",
+    source: "deterministic",
+    summary: "The registered KUL policy drives time-fit screening; it does not certify ticket protection.",
+  });
+  seed({
+    stage: "consent-gate",
+    status: "pending",
+    source: "pending",
+    summary: "No recommendation or itinerary change is accepted without explicit traveller consent.",
+  });
+  return state;
 }
 
 function CandidateCard({ candidate, selected, onChoose, label, disabled }: { candidate: Candidate; selected: boolean; onChoose: () => void; label: string; disabled: boolean }) {
@@ -219,6 +326,8 @@ export default function ConnectionIntegrityDemo() {
   const [scenarioStep, setScenarioStep] = useState(-1);
   const [auditTrail, setAuditTrail] = useState<AuditEvent[]>(readAuditTrail);
   const researchCache = useRef(new Map<string, AgentContractBrief>());
+  const traceRun = useRef(0);
+  const [traceState, setTraceState] = useState<AgentTraceState>(createInitialConnectionTraceState);
   // Scenario cancellation token: bumping the run id invalidates any in-flight
   // replay, so a paused step can never resume after a side switch or a mode
   // change.
@@ -236,7 +345,106 @@ export default function ConnectionIntegrityDemo() {
   const activeCandidate = kulConnectionCase[activeCandidateKey];
   const alternativeCandidateKey = activeCandidateKey === "shortest" ? "buffered" : "shortest";
   const alternativeCandidate = kulConnectionCase[alternativeCandidateKey];
+  const activeScenario = scenarioForCandidate(activeCandidateKey);
+  const activeScenarioReassessment = scenarioReassessmentForCandidate(activeCandidateKey);
   const fallback = fallbackFit(delayMinutes, activeCandidate.connectionMinutes);
+
+  function beginTraceRun(): number {
+    const runId = ++traceRun.current;
+    setTraceState(createAgentTraceState(runId));
+    return runId;
+  }
+
+  function updateTrace(runId: number, event: AgentTraceEventInput) {
+    setTraceState((current) => applyAgentTraceEvent(current, { ...event, runId }));
+  }
+
+  function seedConnectionTrace(runId: number, providerSource: AgentTraceSource, preferenceSummary: string) {
+    updateTrace(runId, {
+      stage: "preference-interpretation",
+      status: "complete",
+      source: "user",
+      summary: preferenceSummary,
+    });
+    updateTrace(runId, {
+      stage: "flight-search",
+      status: "complete",
+      source: "snapshot",
+      summary: "This connection story uses the recorded ATRIP Sandbox offer snapshot for PVG → KUL → SIN; it is not the Seattle fixture and does not issue a new flight search.",
+    });
+    updateTrace(runId, {
+      stage: "official-evidence-search",
+      status: "active",
+      source: providerSource,
+      summary: providerSource === "mock" ? "Mock mode is preparing the disclosed policy input; no web call will be made." : "Bounded provider research is checking official connection-policy evidence.",
+    });
+    updateTrace(runId, {
+      stage: "community-evidence-search",
+      status: "active",
+      source: providerSource,
+      summary: providerSource === "mock" ? "Mock mode does not call a community search; this row stays explicitly fixture-backed." : "Bounded provider research is checking community transfer experience separately.",
+    });
+    updateTrace(runId, {
+      stage: "policy-rubric-gate",
+      status: "complete",
+      source: "deterministic",
+      summary: DEMO_POLICY
+        ? `${DEMO_POLICY.label}: ${DEMO_POLICY.publishedMinimumMinutes} min published minimum + ${DEMO_POLICY.planningBufferMinutes} min planning buffer. This is a time-fit heuristic, not a missed-connection probability.`
+        : "No verified route policy is configured; the explicit no-policy path applies.",
+    });
+    updateTrace(runId, {
+      stage: "recommendation",
+      status: "active",
+      source: providerSource,
+      summary: "Waiting for the whitelist-validated brief; recommendation text does not grant booking authority.",
+    });
+    updateTrace(runId, {
+      stage: "consent-gate",
+      status: "pending",
+      source: "pending",
+      summary: "No change is allowed until the traveller explicitly reviews and consents.",
+    });
+  }
+
+  function completeBriefTrace(runId: number, result: AgentContractBrief) {
+    const providerSource = traceSourceForProvider(providers.agent.source);
+    const meta = result.researchMeta;
+    const fromCache = meta?.fromCache === true;
+    const officialSource = evidenceTraceSource(result.sources, "official", fromCache, providerSource);
+    const communitySource = evidenceTraceSource(result.sources, "community", fromCache, providerSource);
+    const telemetrySummary = meta
+      ? `Safe telemetry: ${meta.sourceCount} whitelisted source${meta.sourceCount === 1 ? "" : "s"}, ${meta.attempts === 2 ? "2 bounded evidence rounds" : "1 bounded evidence round"}, ${fromCache ? "browser cache" : "live run"} (${formatResearchDuration(meta.durationMs)}).`
+      : "Mock fixture telemetry: no provider or web call was executed.";
+    updateTrace(runId, {
+      stage: "official-evidence-search",
+      status: meta || providerSource === "mock" ? "complete" : "unavailable",
+      source: meta || providerSource === "mock" ? officialSource : "unavailable",
+      summary: meta || providerSource === "mock"
+        ? evidenceTraceSummary(result.sources, "official", fromCache, providerSource)
+        : "No official evidence telemetry was returned; no official claim is shown.",
+    });
+    updateTrace(runId, {
+      stage: "community-evidence-search",
+      status: meta || providerSource === "mock" ? "complete" : "unavailable",
+      source: meta || providerSource === "mock" ? communitySource : "unavailable",
+      summary: meta || providerSource === "mock"
+        ? evidenceTraceSummary(result.sources, "community", fromCache, providerSource)
+        : "No community evidence telemetry was returned; no community claim is shown.",
+    });
+    const recommendationSource: AgentTraceSource = fromCache ? "snapshot" : providerSource;
+    updateTrace(runId, {
+      stage: "recommendation",
+      status: "complete",
+      source: recommendationSource,
+      summary: `Whitelist-validated brief recommends ${result.recommendedOption === "selected" ? "the selected" : "the longer-buffer alternative"} option. ${telemetrySummary} Ranking, execution, and booking authority remain deterministic and consent-gated.`,
+    });
+    updateTrace(runId, {
+      stage: "consent-gate",
+      status: "active",
+      source: "user",
+      summary: "Recommendation is ready for explicit traveller consent; no booking or itinerary change has happened.",
+    });
+  }
 
   // Side switch clears any verdict generated under the other side: a
   // traveller-side brief must never linger inside the airline view (or
@@ -245,6 +453,7 @@ export default function ConnectionIntegrityDemo() {
   function switchSide(next: Side) {
     if (next === side) return;
     cancelScenario();
+    beginTraceRun();
     setSide(next);
     setBrief(null);
     setResearchError(false);
@@ -264,6 +473,7 @@ export default function ConnectionIntegrityDemo() {
   function selectTriggerMode(mode: "scenario" | "manual") {
     if (mode === triggerMode) return;
     cancelScenario();
+    beginTraceRun();
     setTriggerMode(mode);
     if (mode === "manual") {
       // A replay may have left its fixture judgment and recorded offer behind;
@@ -272,6 +482,23 @@ export default function ConnectionIntegrityDemo() {
       setResearchError(false);
       setProposalSent(false);
     }
+  }
+
+  function acceptRecommendation() {
+    if (!brief) return;
+    const chosenKey = brief.recommendedOption === "selected" ? activeCandidateKey : alternativeCandidateKey;
+    recordAudit({ side: "traveller", event: "traveller-consent", detail: `Traveller confirmed ${kulConnectionCase[chosenKey].flights.join(" + ")} (PVG → KUL → SIN) for airline watch`, source: "Traveller UI · demo consent" });
+    updateTrace(traceRun.current, {
+      stage: "consent-gate",
+      status: "complete",
+      source: "user",
+      summary: `Traveller explicitly approved ${kulConnectionCase[chosenKey].flights.join(" + ")} for the simulated airline watch. No booking was created.`,
+    });
+    setBookedCandidate(chosenKey);
+    setSide("airline");
+    setBrief(null);
+    setDelayMinutes(0);
+    setProposalSent(false);
   }
 
   function scenarioPause(runId: number, ms: number): Promise<boolean> {
@@ -284,8 +511,16 @@ export default function ConnectionIntegrityDemo() {
   // visible pause so the event evolution can be followed; every audit entry is
   // source-labelled as a scenario replay, and the whole timeline is simulated.
   async function runScenario() {
-    const scenario = AIRLINE_SCENARIO;
+    const scenario = activeScenario;
+    const scenarioReassessment = activeScenarioReassessment;
+    const scenarioOfferCandidate = activeCandidateKey === "shortest" ? alternativeCandidate : activeCandidate;
     const runId = ++scenarioRunId.current;
+    const traceRunId = beginTraceRun();
+    seedConnectionTrace(
+      traceRunId,
+      "mock",
+      `Traveller-selected ${activeCandidate.flights.join(" + ")} is being replayed through a scripted airline intervention; no live event feed is connected.`,
+    );
     setBrief(null);
     setResearchError(false);
     setProposalSent(false);
@@ -302,20 +537,56 @@ export default function ConnectionIntegrityDemo() {
     // provider.
     setScenarioStep(1);
     recordAudit({ side: "airline", event: "scenario-recheck-triggered", detail: `Scenario replay rechecked the connection contract under a +${scenario.delayMinutes} min inbound delay using the deterministic demo fixture`, source: "Scenario replay · demo simulation" });
+    updateTrace(traceRunId, {
+      stage: "official-evidence-search",
+      status: "complete",
+      source: "mock",
+      summary: "Scripted scenario uses the disclosed policy fixture; no official web search was executed.",
+    });
+    updateTrace(traceRunId, {
+      stage: "community-evidence-search",
+      status: "complete",
+      source: "mock",
+      summary: "Scripted scenario uses no community search; no simulated result is presented as a live source.",
+    });
     setResearchError(false);
     if (!(await scenarioPause(runId, scenario.stepPauseMs))) return;
-    setBrief(SCENARIO_REASSESSMENT);
+    setBrief(scenarioReassessment);
+    updateTrace(traceRunId, {
+      stage: "recommendation",
+      status: "complete",
+      source: "mock",
+      summary: activeCandidateKey === "shortest"
+        ? "Demo agent fixture recommends the longer-buffer alternative; ranking and intervention execution remain deterministic."
+        : "Demo agent fixture keeps the selected longer-buffer itinerary; no extra recovery flight is invented.",
+    });
+    updateTrace(traceRunId, {
+      stage: "consent-gate",
+      status: "pending",
+      source: "pending",
+      summary: "The fixture recommendation is not an action; an offer must be prepared and then explicitly accepted.",
+    });
     if (!(await scenarioPause(runId, scenario.stepPauseMs))) return;
 
     // Step 3 — intervention proposal (the fixture judgment is insufficient).
     setScenarioStep(2);
-    recordAudit({ side: "airline", event: "airline-proposal-offer", detail: `Airline prepared a traveller offer for ${alternativeCandidate.flights.join(" + ")} (fare difference waived in this simulation)`, source: "Scenario replay · demo simulation" });
+    recordAudit({ side: "airline", event: "airline-proposal-offer", detail: activeCandidateKey === "shortest"
+      ? `Airline prepared a traveller offer for ${scenarioOfferCandidate.flights.join(" + ")} (fare difference waived in this simulation)`
+      : `Airline prepared a consent-gated notice to keep ${scenarioOfferCandidate.flights.join(" + ")} (no alternate recovery flight is claimed)`, source: "Scenario replay · demo simulation" });
     setProposalSent(true);
     if (!(await scenarioPause(runId, scenario.stepPauseMs))) return;
 
     // Step 4 — consent-flow prompt: the offer is recorded, consent still open.
     setScenarioStep(3);
-    recordAudit({ side: "airline", event: "scenario-consent-prompt", detail: `Scenario replay recorded the offer for ${alternativeCandidate.flights.join(" + ")}; traveller review and consent are still required before any change`, source: "Scenario replay · demo simulation" });
+    recordAudit({ side: "airline", event: "scenario-consent-prompt", detail: activeCandidateKey === "shortest"
+      ? `Scenario replay recorded the offer for ${scenarioOfferCandidate.flights.join(" + ")}; traveller review and consent are still required before any change`
+      : `Scenario replay recorded the notice for ${scenarioOfferCandidate.flights.join(" + ")}; traveller review and consent are still required`, source: "Scenario replay · demo simulation" });
+    updateTrace(traceRunId, {
+      stage: "consent-gate",
+      status: "active",
+      source: "user",
+      summary: "Offer recorded in the local audit trail; traveller review and explicit consent are still required.",
+    });
     if (!(await scenarioPause(runId, scenario.stepPauseMs))) return;
     setScenarioStep(scenario.steps.length);
   }
@@ -324,12 +595,19 @@ export default function ConnectionIntegrityDemo() {
     const delay = delayOverride ?? delayMinutes;
     const researchKey = `${providers.agent.source}:${side}:${activeCandidate.flights.join("+")}:${activeCandidate.connectionMinutes}:${delay}`;
     const gen = ++researchGen.current;
+    const traceRunId = beginTraceRun();
+    seedConnectionTrace(
+      traceRunId,
+      traceSourceForProvider(providers.agent.source),
+      `Traveller selected the ${activeCandidateKey === "shortest" ? "cheapest" : "more-buffered"} itinerary; the Agent compares this explicit choice with the alternative.`,
+    );
     const cached = researchCache.current.get(researchKey) ?? readCachedResearch(researchKey);
     if (cached) {
       setResearchError(false);
       const cacheHit = { ...cached, researchMeta: cached.researchMeta ? { ...cached.researchMeta, fromCache: true } : undefined };
       researchCache.current.set(researchKey, cacheHit);
       setBrief(cacheHit);
+      completeBriefTrace(traceRunId, cacheHit);
       return cacheHit;
     }
     setLoading(true);
@@ -358,6 +636,7 @@ export default function ConnectionIntegrityDemo() {
       writeCachedResearch(researchKey, result);
       if (gen !== researchGen.current) return null; // stale: context changed mid-flight
       setBrief(result);
+      completeBriefTrace(traceRunId, result);
       return result;
     } catch (error) {
       // Local diagnostics only; server messages never contain provider keys.
@@ -365,6 +644,26 @@ export default function ConnectionIntegrityDemo() {
       if (gen !== researchGen.current) return null;
       setBrief(null);
       setResearchError(true);
+      for (const stage of ["official-evidence-search", "community-evidence-search"] as const) {
+        updateTrace(traceRunId, {
+          stage,
+          status: "unavailable",
+          source: "unavailable",
+          summary: "The research provider did not return a usable response; no evidence claim is shown.",
+        });
+      }
+      updateTrace(traceRunId, {
+        stage: "recommendation",
+        status: "unavailable",
+        source: "unavailable",
+        summary: "No recommendation was generated because the evidence-backed assessment is unavailable.",
+      });
+      updateTrace(traceRunId, {
+        stage: "consent-gate",
+        status: "unavailable",
+        source: "unavailable",
+        summary: "Consent cannot open without a completed recommendation.",
+      });
       return null;
     } finally {
       if (gen === researchGen.current) setLoading(false);
@@ -376,9 +675,12 @@ export default function ConnectionIntegrityDemo() {
       <section className="integrity-hero">
         <p className="eyebrow">Connection Integrity Agent</p>
         <h1>“Sellable” is not the same as “protected.”</h1>
-        <p>One Asia-Pacific connection, two decisions: help a traveller choose an evidence-backed itinerary before purchase, then help an airline intervene when an event breaks that connection contract.</p>
-        <div className="evidence-row"><ProvenancePill label="ATRIP flight offer" /><ProvenancePill label="AirAsia public policy" /><ProvenancePill label="Time fit ≠ ticket protection" /></div>
+        <p><strong>Problem origin · Seattle:</strong> a legal-looking international-to-domestic connection still failed in real life when immigration took longer than the available buffer.</p>
+        <p><strong>Demo track · PVG → KUL → SIN:</strong> this Asia-Pacific route is the reproducible Atlas Sandbox example, not the Seattle incident. The flow helps a traveller choose before purchase, then lets an airline rehearse a consent-gated intervention.</p>
+        <div className="evidence-row"><ProvenancePill label="Snapshot · ATRIP offer observed" /><ProvenancePill label="Live · provider call when configured" /><ProvenancePill label="Mock · zero-credential replay" /><ProvenancePill label="Unavailable · no claim shown" /></div>
       </section>
+
+      <AgentTrace state={traceState} />
 
       <div className="integrity-tabs" role="tablist" aria-label="Connection Integrity views">
         <button type="button" role="tab" aria-selected={side === "traveller"} className={side === "traveller" ? "active" : ""} onClick={() => switchSide("traveller")}>Traveller: choose before booking</button>
@@ -391,13 +693,13 @@ export default function ConnectionIntegrityDemo() {
             <div className="card-title-row"><h2>PVG → KUL → SIN · 10 Sep</h2><ProvenancePill label="ATRIP Sandbox offer snapshot" /></div>
             <p className="muted">Two actual ATRIP routings. The first is cheaper and faster; the second buys 70 more minutes at KUL. Select either card, then ask the agent to compare both for you.</p>
             <div className="integrity-options">
-              <CandidateCard label="Cheapest" candidate={kulConnectionCase.shortest} selected={candidate === "shortest"} disabled={loading} onChoose={() => { setCandidate("shortest"); setBrief(null); setResearchError(false); }} />
-              <CandidateCard label="More buffer" candidate={kulConnectionCase.buffered} selected={candidate === "buffered"} disabled={loading} onChoose={() => { setCandidate("buffered"); setBrief(null); setResearchError(false); }} />
+              <CandidateCard label="Cheapest" candidate={kulConnectionCase.shortest} selected={candidate === "shortest"} disabled={loading} onChoose={() => { beginTraceRun(); setCandidate("shortest"); setBrief(null); setResearchError(false); }} />
+              <CandidateCard label="More buffer" candidate={kulConnectionCase.buffered} selected={candidate === "buffered"} disabled={loading} onChoose={() => { beginTraceRun(); setCandidate("buffered"); setBrief(null); setResearchError(false); }} />
             </div>
             <div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => void askAgent()} disabled={loading}>{loading ? "Agent is comparing evidence…" : "Ask agent which itinerary to choose"}</button></div>
           </section>
           <ContractVerdict brief={brief} fallback={fallback} delayMinutes={delayMinutes} scheduledConnectionMinutes={activeCandidate.connectionMinutes} researchError={researchError} selectedLabel={activeCandidate.flights.join(" + ")} alternativeLabel={alternativeCandidate.flights.join(" + ")} />
-          {brief && <section className="card"><div className="card-title-row"><h2>Use this recommendation</h2><ProvenancePill label="Traveller consent required" /></div><p>Confirming carries <strong>{brief.recommendedOption === "selected" ? activeCandidate.flights.join(" + ") : alternativeCandidate.flights.join(" + ")}</strong> into the airline watch simulation. No booking is created.</p><div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => { const chosenKey = brief.recommendedOption === "selected" ? activeCandidateKey : alternativeCandidateKey; recordAudit({ side: "traveller", event: "traveller-consent", detail: `Traveller confirmed ${kulConnectionCase[chosenKey].flights.join(" + ")} (PVG → KUL → SIN) for airline watch`, source: "Traveller UI · demo consent" }); setBookedCandidate(chosenKey); setSide("airline"); setBrief(null); setDelayMinutes(0); setProposalSent(false); }}>{bookedCandidate === (brief.recommendedOption === "selected" ? activeCandidateKey : alternativeCandidateKey) ? "Selected for airline watch" : "Use recommended itinerary"}</button></div></section>}
+          {brief && <section className="card"><div className="card-title-row"><h2>Use this recommendation</h2><ProvenancePill label="Traveller consent required" /></div><p>Confirming carries <strong>{brief.recommendedOption === "selected" ? activeCandidate.flights.join(" + ") : alternativeCandidate.flights.join(" + ")}</strong> into the airline watch simulation. No booking is created.</p><div className="btn-row"><button type="button" className="btn btn-primary" onClick={acceptRecommendation}>{bookedCandidate === (brief.recommendedOption === "selected" ? activeCandidateKey : alternativeCandidateKey) ? "Selected for airline watch" : "Use recommended itinerary"}</button></div></section>}
           <section className="card"><h2>Evidence ledger</h2>{kulConnectionCase.evidence.map((item) => <div className="evidence-item" key={item.kind}><strong>{item.kind}</strong><p>{item.detail}</p><a href={item.url} target="_blank" rel="noreferrer">Read source</a></div>)}</section>
         </>
       ) : (
@@ -412,10 +714,10 @@ export default function ConnectionIntegrityDemo() {
             </div>
             {triggerMode === "scenario" ? (
               <div className="scenario-panel">
-                <p className="muted small">{AIRLINE_SCENARIO.name} — scripted demo timeline. Every event below is simulated; no live flight-status feed is used.</p>
+                <p className="muted small">{activeScenario.name} — scripted demo timeline. Every event below is simulated; no live flight-status feed is used.</p>
                 <ol className="scenario-steps">
-                  {AIRLINE_SCENARIO.steps.map((step, index) => {
-                    const stepState = index < scenarioStep ? "done" : index === scenarioStep && scenarioStep < AIRLINE_SCENARIO.steps.length ? "active" : "";
+                  {activeScenario.steps.map((step, index) => {
+                    const stepState = index < scenarioStep ? "done" : index === scenarioStep && scenarioStep < activeScenario.steps.length ? "active" : "";
                     return (
                       <li key={step.label} className={stepState}>
                         <span className="scenario-step-dot" aria-hidden="true">{index < scenarioStep ? "✓" : index + 1}</span>
@@ -425,19 +727,19 @@ export default function ConnectionIntegrityDemo() {
                   })}
                 </ol>
                 <div className="btn-row">
-                  <button type="button" className="btn btn-primary" onClick={() => void runScenario()} disabled={(scenarioStep >= 0 && scenarioStep < AIRLINE_SCENARIO.steps.length) || loading}>
-                    {scenarioStep >= 0 && scenarioStep < AIRLINE_SCENARIO.steps.length
+                  <button type="button" className="btn btn-primary" onClick={() => void runScenario()} disabled={(scenarioStep >= 0 && scenarioStep < activeScenario.steps.length) || loading}>
+                    {scenarioStep >= 0 && scenarioStep < activeScenario.steps.length
                       ? (loading ? "Agent is rechecking…" : "Scenario running…")
-                      : scenarioStep >= AIRLINE_SCENARIO.steps.length ? "Replay scenario again · 重新回放" : "Run scenario · 一键回放"}
+                      : scenarioStep >= activeScenario.steps.length ? "Replay scenario again · 重新回放" : "Run scenario · 一键回放"}
                   </button>
-                  {scenarioStep >= 0 && scenarioStep < AIRLINE_SCENARIO.steps.length && <button type="button" className="btn btn-secondary" onClick={cancelScenario}>Stop replay · 停止</button>}
+                  {scenarioStep >= 0 && scenarioStep < activeScenario.steps.length && <button type="button" className="btn btn-secondary" onClick={cancelScenario}>Stop replay · 停止</button>}
                 </div>
-                {scenarioStep >= 3 && <div className="callout callout-success"><span className="callout-title">Offer recorded — consent pending.</span> The traveller must still review and accept the alternative routing; no change applies without consent (simulated flow).</div>}
-                {scenarioStep >= AIRLINE_SCENARIO.steps.length && <div className="banner banner-success">Replay complete — each step was written to the audit trail below. All events are simulated.</div>}
+                {scenarioStep >= 3 && <div className="callout callout-success"><span className="callout-title">Offer recorded — consent pending.</span> {activeCandidateKey === "shortest" ? "The traveller must still review and accept the alternative routing" : "The traveller must still review the selected routing notice"}; no change applies without consent (simulated flow).</div>}
+                {scenarioStep >= activeScenario.steps.length && <div className="banner banner-success">Replay complete — each step was written to the audit trail below. All events are simulated.</div>}
               </div>
             ) : (
               <>
-                <div className="integrity-event"><span>Inbound event</span><button type="button" className={delayMinutes === 0 ? "selected" : ""} onClick={() => { setDelayMinutes(0); setProposalSent(false); setBrief(null); setResearchError(false); }}>No disruption</button><button type="button" className={delayMinutes === 60 ? "selected" : ""} onClick={() => { setDelayMinutes(60); setProposalSent(false); setBrief(null); setResearchError(false); }}>Inbound delayed +60 min</button></div>
+                <div className="integrity-event"><span>Inbound event</span><button type="button" className={delayMinutes === 0 ? "selected" : ""} onClick={() => { beginTraceRun(); setDelayMinutes(0); setProposalSent(false); setBrief(null); setResearchError(false); }}>No disruption</button><button type="button" className={delayMinutes === 60 ? "selected" : ""} onClick={() => { beginTraceRun(); setDelayMinutes(60); setProposalSent(false); setBrief(null); setResearchError(false); }}>Inbound delayed +60 min</button></div>
                 <div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => void askAgent()} disabled={loading}>{loading ? "Agent is rechecking…" : "Recheck connection contract"}</button></div>
               </>
             )}

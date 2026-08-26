@@ -72,15 +72,25 @@ const required = [
   ["simulated event disclosure", "Simulated operational event"],
   ["consent disclosure", "Traveller consent required"],
   ["ATRIP snapshot provenance", "ATRIP Sandbox offer snapshot"],
-  ["routing identifier disclosure", "routingIdentifier"],
-  ["fresh Atlas recheck disclosure", "fresh search.do"],
-  ["snapshot-only recheck state", "Snapshot only"],
-  ["unavailable recheck state", "Unavailable — not verified"],
   ["self-transfer labelling", "self-transfer"],
   ["product promise", "Sellable"],
   ["rubric disclaimer", "not a historical missed-connection probability"],
   ["honest search-failure banner", "no recommendation is generated until live provider data is available"],
   ["audit trail disclosure", "Persisted in this browser"],
+  ["visible Agent trace", "How the Agent and rules reached this point"],
+  ["trace preference stage", "Preference interpretation"],
+  ["trace flight stage", "Atlas / flight search"],
+  ["trace official evidence stage", "Official evidence search"],
+  ["trace community evidence stage", "Community evidence search"],
+  ["trace policy stage", "Policy / rubric gate"],
+  ["trace recommendation stage", "Recommendation"],
+  ["trace consent stage", "Consent gate"],
+  ["trace snapshot provenance", "Snapshot · recorded input/cache"],
+  ["trace mock provenance", "Mock · deterministic fixture"],
+  ["trace live provenance", "Live · provider call"],
+  ["trace unavailable provenance", "Unavailable · no claim shown"],
+  ["trace Seattle origin disclosure", "Problem origin · Seattle"],
+  ["trace Sandbox narrative disclosure", "not the Seattle incident"],
 ];
 for (const [name, text] of required) {
   check(`dist: required label "${name}"`, bundle.includes(text));
@@ -125,6 +135,7 @@ check(
 const appSource = readSrc("App.tsx");
 check("behaviour: no legacy traveller/ops view is reachable", !/OpsBoard|TravellerFlow/.test(appSource));
 const integritySource = readSrc("components/ConnectionIntegrityDemo.tsx");
+const traceSource = readSrc("domain/agent-trace.ts");
 check(
   "behaviour: ticket protection is disclosed separately from time fit",
   integritySource.includes("Ticket protection not confirmed") && integritySource.includes("Likely comfortable"),
@@ -179,6 +190,14 @@ check(
 check(
   "behaviour: consent and proposal events persist to a timestamped local audit trail",
   integritySource.includes("connection-integrity:audit-trail") && integritySource.includes("new Date().toISOString()"),
+);
+check(
+  "behaviour: visible trace has a fixed stage order and rejects stale runs",
+  traceSource.includes("AGENT_TRACE_STAGES") && traceSource.includes("event.runId !== state.runId") && traceSource.includes("events.sort"),
+);
+check(
+  "behaviour: mock and snapshot trace sources cannot be treated as live",
+  traceSource.includes('if (source === "mock") return "mock"') && traceSource.includes('return source === "live"'),
 );
 check(
   "behaviour: the synthesis prompt enforces contract wording over the MCT abbreviation",

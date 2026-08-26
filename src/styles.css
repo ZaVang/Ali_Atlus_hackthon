@@ -934,6 +934,176 @@ code {
   font-style: italic;
 }
 
+/* --- Safe Agent trace -----------------------------------------------------
+   This is a stage/status ledger, never a reasoning transcript. Two columns
+   keep the seven gates visible without pushing the main demo below the fold;
+   the source pill makes mock, snapshot, live, and unavailable paths explicit. */
+
+.agent-trace {
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid rgba(47, 127, 209, 0.32);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(47, 127, 209, 0.06), #fff 38%);
+  box-shadow: var(--shadow);
+}
+
+.agent-trace-compact {
+  padding: 14px;
+}
+
+.agent-trace-kicker {
+  margin: 0 0 3px;
+  color: var(--sky);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-trace-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.agent-trace-row {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.agent-trace-index {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(15, 42, 67, 0.08);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-trace-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.agent-trace-heading {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.agent-trace-heading strong {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.agent-trace-status {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.agent-trace-copy p {
+  margin: 3px 0 7px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.agent-trace-source {
+  display: inline-block;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.agent-trace-source-live {
+  border-color: rgba(47, 127, 209, 0.42);
+  color: #1f5f9d;
+}
+
+.agent-trace-source-mock {
+  border-color: rgba(217, 138, 31, 0.42);
+  color: #8a5710;
+}
+
+.agent-trace-source-snapshot {
+  border-color: rgba(15, 42, 67, 0.28);
+  color: var(--navy);
+}
+
+.agent-trace-source-unavailable {
+  border-color: rgba(201, 79, 61, 0.38);
+  color: #9d392d;
+}
+
+.agent-trace-source-deterministic {
+  border-color: rgba(31, 157, 97, 0.4);
+  color: #136a41;
+}
+
+.agent-trace-source-user {
+  border-color: rgba(47, 127, 209, 0.34);
+  color: var(--sky);
+}
+
+.agent-trace-row.agent-trace-active {
+  border-color: var(--sky);
+  background: rgba(47, 127, 209, 0.07);
+  box-shadow: 0 0 0 2px rgba(47, 127, 209, 0.08);
+}
+
+.agent-trace-row.agent-trace-active .agent-trace-index {
+  background: var(--sky);
+  color: #fff;
+}
+
+.agent-trace-row.agent-trace-complete {
+  border-color: rgba(31, 157, 97, 0.35);
+}
+
+.agent-trace-row.agent-trace-complete .agent-trace-index {
+  background: rgba(31, 157, 97, 0.15);
+  color: var(--success);
+}
+
+.agent-trace-row.agent-trace-unavailable {
+  border-color: rgba(201, 79, 61, 0.3);
+  background: rgba(201, 79, 61, 0.04);
+}
+
+@media (max-width: 720px) {
+  .agent-trace-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---------- Itinerary lab ---------- */
 
 .form-grid {
