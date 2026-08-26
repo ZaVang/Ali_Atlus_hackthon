@@ -72,6 +72,10 @@ const required = [
   ["simulated event disclosure", "Simulated operational event"],
   ["consent disclosure", "Traveller consent required"],
   ["ATRIP snapshot provenance", "ATRIP Sandbox offer snapshot"],
+  ["routing identifier disclosure", "routingIdentifier"],
+  ["fresh Atlas recheck disclosure", "fresh search.do"],
+  ["snapshot-only recheck state", "Snapshot only"],
+  ["unavailable recheck state", "Unavailable — not verified"],
   ["self-transfer labelling", "self-transfer"],
   ["product promise", "Sellable"],
   ["rubric disclaimer", "not a historical missed-connection probability"],
@@ -176,6 +180,10 @@ check(
   sandboxSource.includes("mapSegments(routing.fromSegments)") && !sandboxSource.includes("parseSegmentsFromIdentifier"),
 );
 check(
+  "behaviour: selected offers expose a non-destructive exact-routing recheck",
+  sandboxSource.includes("recheckOffer") && labSource.includes("recheckSelected") && labSource.includes("matches each exact <code>routingIdentifier</code>"),
+);
+check(
   "behaviour: empty thinking-synthesis content falls back to a non-thinking retry with diagnostics",
   logicSource.includes("retrying with thinking disabled") && logicSource.includes("finish_reason="),
 );
@@ -212,7 +220,7 @@ check("policy registry: KUL/AirAsia entry carries the published 60 + 90 paramete
 check("policy registry: KUL entry whitelists the official evidence domain", Array.isArray(kulEntry?.officialDomains) && kulEntry.officialDomains.includes("airasia.com"));
 check("policy registry: at least one non-KUL entry proves extensibility", nonKulEntries.length >= 1);
 check("policy registry: unverified entries are honestly marked illustrative", nonKulEntries.every((entry) => entry.policySource.illustrative === true));
-check("policy registry: resolution uses verified KUL and ignores illustrative/unconfigured routes", registry.resolveConnectionPolicy({ connectionAirport: "KUL" })?.id === "kul-airasia-flythru" && registry.resolveConnectionPolicy({ connectionAirport: "PVG" }) === null && registry.resolveConnectionPolicy({ connectionAirport: "LHR" }) === null);
+check("policy registry: resolution uses verified KUL and ignores illustrative/unconfigured routes", registry.resolveConnectionPolicy({ connectionAirport: "KUL", flightNumbers: ["AK727"] })?.id === "kul-airasia-flythru" && registry.resolveConnectionPolicy({ connectionAirport: "PVG" }) === null && registry.resolveConnectionPolicy({ connectionAirport: "LHR" }) === null);
 check("policy registry: no-policy disclosure is non-empty", typeof registry.NO_POLICY_DISCLOSURE === "string" && registry.NO_POLICY_DISCLOSURE.length > 0);
 check(
   "architecture: server evidence search resolves domains/templates from the registry, no hard-coded airasia gate",

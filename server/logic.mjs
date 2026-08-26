@@ -265,7 +265,7 @@ export function createAtlasProxyHandler(getEnv) {
     // generic credentialed Atlas tunnel that could be repurposed for order,
     // payment, void, or other servicing endpoints without a consent gate.
     if (!ALLOWED_ATLAS_ENDPOINTS.has(endpoint)) {
-      sendJson(res, 404, { status: "error", msg: "Atlas endpoint is not enabled by this demo" });
+      sendJson(res, 404, { status: "unavailable", msg: "Atlas endpoint is not enabled by this demo" });
       return;
     }
     const env = getEnv();

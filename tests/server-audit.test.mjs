@@ -141,7 +141,7 @@ test("Atlas proxy rejects an unimplemented servicing endpoint before using crede
   try {
     const res = await invoke(createAtlasProxyHandler(ATLAS_ENV), request({ orderNo: "attacker-controlled" }, { url: "/pay.do" }));
     assert.equal(res.statusCode, 404);
-    assert.equal(res.json?.status, "error");
+    assert.equal(res.json?.status, "unavailable");
     assert.equal(upstreamCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;

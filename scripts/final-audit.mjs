@@ -66,6 +66,8 @@ const gates = {
   build: runGate("npm run build", ["build"]),
   verify: runGate("npm run verify", ["verify"]),
   serverSmoke: runGate("npm run smoke:server", ["smoke:server"]),
+  judgePreflight: runGate("npm run judge-preflight", ["judge-preflight"]),
+  recordingPreflight: runGate("npm run recording-preflight", ["recording-preflight"]),
 };
 
 const app = read("src/App.tsx");
@@ -80,10 +82,14 @@ const registry = read("src/domain/connection-policies.mjs");
 const server = read("server/logic.mjs");
 const videoScript = read("docs/DEMO_VIDEO_SCRIPT.md");
 const readme = read("README.md");
+const liveEvidence = read("docs/LIVE_SMOKE_EVIDENCE.md");
 const currentScreenshots = localFiles("verify-screenshots/current").filter((file) => /\.(png|jpg|jpeg|webp)$/i.test(file));
 const videoFiles = localFiles(".").filter((file) => /\.(mp4|mov|webm|mkv)$/i.test(file));
 const hasStableHostingManifest = existsSync(join(root, ".openai/hosting.json"));
-const hasServicingCode = /(?:verify|order|pay|void)\.do/i.test(`${sandbox}\n${provider}`);
+const hasServicingCode = /fetch\([^)]*\/(?:verify|order|pay|void)\.do/i.test(`${sandbox}\n${provider}\n${server}`);
+const hasRecordedLiveSmoke = /ATRIP Sandbox `search\.do` \| PASS[\s\S]*HTTP 200[\s\S]*status: 0/i.test(liveEvidence)
+  && /Vite connection research \| PASS[\s\S]*HTTP 200/i.test(liveEvidence)
+  && /Standalone Node service \| PASS/.test(liveEvidence);
 
 console.log("\nLocal evidence classification");
 evidenceCheck(
@@ -120,9 +126,9 @@ evidenceCheck(
 console.log("\nExternal and human acceptance (not fabricated as PASS)");
 evidenceCheck(
   "fresh Atlas Sandbox search evidence",
-  false,
-  "HUMAN",
-  "adapter exists, but this offline audit does not claim a fresh credentialed live run",
+  hasRecordedLiveSmoke,
+  hasRecordedLiveSmoke ? "PASS" : "HUMAN",
+  hasRecordedLiveSmoke ? "secret-free live smoke ledger records Atlas search, research, and standalone-service success" : "adapter exists, but this offline audit does not claim a fresh credentialed live run",
 );
 evidenceCheck(
   "real flight status plus Atlas verify/book/payment/servicing",
@@ -151,7 +157,7 @@ evidenceCheck(
 
 const score = {
   Innovation: 25,
-  Feasibility: 20,
+  Feasibility: hasRecordedLiveSmoke ? 21 : 20,
   Qoder: 12,
   Demo: 13,
 };

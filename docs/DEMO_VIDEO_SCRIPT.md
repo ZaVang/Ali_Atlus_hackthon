@@ -11,7 +11,7 @@ User-recorded screen-capture video; this document is the shot-by-shot script plu
 | Total length 总时长 | 180 s（3 分钟） |
 | Structure 结构 | 开场 15s → 购买前 live 链路 75s → 参数化框架 15s → 购买后场景回放 45s → 收尾 30s |
 | Recording mode 录制模式 | `npm run dev` live 模式（Flight = atlas-sandbox，Agent = deepseek），见附录 A |
-| Hosted entry 托管入口 | <https://temporary-prompt-sable-7w2ezf1.vercel.app>（Vercel 匿名临时部署，创建后约 60 分钟过期；认领/永久化方式见 [README](../README.md) "Live demo" 节） |
+| Public entry 公网入口 | 仅使用提交前配置并通过 `npm run recording-preflight -- --require-public-url` 的自有 URL；URL 不写入仓库。 / Use only an owned URL configured before submission and verified with the recording preflight; the URL is intentionally not committed. |
 | Gate to quote 可引用门禁 | `npm run verify` 60 passed；`npm run test` 40 cases；`npm run smoke:research`（status=200、attempts=2、official 来源 ×1） |
 
 ## 1. Shot list / 分镜表
@@ -109,7 +109,7 @@ live 链路失败是产品预设路径之一，**不要掩饰**，改用以下�
 | --- | --- | --- |
 | `current-8-policy-pill.png` | 镜头 4/5/7 | 已就位：Itinerary Lab Policy pill（"Policy: AirAsia Fly-Thru · KLIA Terminal 2 · 60 min minimum + 90 min buffer" + source 链接）与 68 个返回配对、组合卡同屏；Flight = atlas-sandbox 真实搜索，策略由 `connection-policies` 注册表解析 |
 | `current-9-scenario-replay.png` | 镜头 9 | 已就位：四步时间线（3 完成 + 1 进行中）、insufficient 结论、干预提案与 "Scenario replay · demo simulation" 审计条目同屏；确定性 demo fixture 回放（全模拟） |
-| `current-10-hosted-demo.png` | 镜头 12 | 已就位：托管页 <https://temporary-prompt-sable-7w2ezf1.vercel.app> 真实首屏（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill）；托管 URL 实测可访问（注意该临时部署约 60 分钟过期，如录制时已失效按 README "Live demo" 节重新部署或认领） |
+| `current-10-hosted-demo.png` | 镜头 12 | 提交前替换为通过 preflight 的自有公网首屏（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill）；不在仓库固化临时 URL。 |
 
 索引同步状态：`verify-screenshots/current/README.md` 与 `docs/QODER_USAGE.md` / `docs/QODER_USAGE.zh-CN.md` 的截图清单均已更新为 11 张（双语、逐张标注数据路径）。
 

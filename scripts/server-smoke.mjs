@@ -163,8 +163,9 @@ async function livePhase() {
     });
     report("POST /api/atlas/search.do → upstream answered (credentials injected server-side)", res.status !== 503 && res.status < 500, `status=${res.status}`);
 
-    res = await post("/api/agent/chat", { messages: [{ role: "user", content: 'Reply with exactly: OK' }], temperature: 0 });
-    report("POST /api/agent/chat → 200 from upstream", res.status === 200, `status=${res.status}`);
+    res = await post("/api/agent/chat", { messages: [{ role: "system", content: "You are a harmless smoke-test assistant." }, { role: "user", content: 'Reply with exactly: OK' }], temperature: 0 });
+    const chatText = res.status === 200 ? "" : (await res.text()).slice(0, 300);
+    report("POST /api/agent/chat → 200 from upstream", res.status === 200, `status=${res.status}${chatText ? ` body=${chatText}` : ""}`);
 
     res = await post("/api/agent/connection-research", RESEARCH_PAYLOAD);
     const text = await res.text();

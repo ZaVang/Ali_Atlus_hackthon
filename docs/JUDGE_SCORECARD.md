@@ -16,10 +16,10 @@ Run the local part with `npm run score`. It runs the mock build, tests, producti
 | Criterion | Max | Current | Evidence posture | Main deduction |
 |---|---:|---:|---|---|
 | Innovation | 30 | 25 | Local product/code evidence plus human impact judgment | One verified policy and no measured pilot outcome |
-| Feasibility | 30 | 20 | Local mock/runtime/security evidence; live Atlas not re-run here | No authorized flight-status or servicing execution |
+| Feasibility | 30 | 21 | Local mock/runtime/security evidence plus [secret-free live smoke evidence](LIVE_SMOKE_EVIDENCE.md) | No authorized flight-status or servicing execution |
 | Qoder | 20 | 12 | Reproducible code gates; Qoder provenance remains external | Current Qoder/session screenshots are not in this checkout |
 | Demo | 20 | 13 | Deterministic local flow and mock build; recording not supplied | No durable public deployment or formal recording |
-| **Total** | **100** | **70** | **Local gates PASS; human/external items remain open** | **25 points remain to the 95 target** |
+| **Total** | **100** | **71** | **Local gates and recorded read-only live smoke PASS; human/external items remain open** | **24 points remain to the 95 target** |
 
 ## Innovation — 25 / 30
 
@@ -37,7 +37,7 @@ The deliberate absence of a calibrated missed-connection probability is `WAIVED`
 | Acceptance that a judge can verify | Evidence location | Current | Deduction / dependency |
 |---|---|---:|---|
 | A reviewer can run the product with zero credentials in mock mode and see labelled fixtures, deterministic scenario replay, and no invented live offers. | `scripts/build-mock.mjs`, `src/providers/mock-atlas.ts`, `src/providers/mock-agent.ts`, `npm run build:mock` | 8 / 8 — `PASS [automated]` | Local-only acceptance is complete. |
-| The live flight search path is a narrow Atlas Sandbox `search.do` adapter with structured segment mapping and server-side credentials. | `src/providers/sandbox-atlas.ts`, `server/logic.mjs`, `vite.config.ts`, `docs/ATLAS_INTEGRATION.md` | 7 / 8 — `HUMAN` | One point remains until a credentialed Sandbox run is repeated and its returned shape/route coverage is attached. External Atlas access is required. |
+| The live flight search path is a narrow Atlas Sandbox `search.do` adapter with structured segment mapping and server-side credentials. | `src/providers/sandbox-atlas.ts`, `server/logic.mjs`, `vite.config.ts`, `docs/ATLAS_INTEGRATION.md`, `docs/LIVE_SMOKE_EVIDENCE.md` | 8 / 8 — `PASS [recorded live evidence]` | The evidence is read-only and does not prove booking or servicing. |
 | The exposed server boundary is bounded, source-safe, endpoint-allowlisted, and fail-closed under missing credentials or malformed input. | `server/logic.mjs`, `tests/server-audit.test.mjs`, `npm run smoke:server` | 5 / 6 — `PASS [automated]` | Local hardening passes; a public deployment health/security check is still external. |
 | Real flight status can trigger a real Atlas verify/book/payment/servicing recovery action. | No implementation in `src/` or `server/`; only search is enabled. | 0 / 8 — `BLOCKED` | Requires an authorized status source, Atlas permissions/schemas, consent policy, and a sandbox or production execution proof. Never infer this from the adapter or documentation. |
 
@@ -73,4 +73,4 @@ Until those items are completed, the project is locally auditable but not “95-
 
 ## Chinese audit summary / 中文审计结论
 
-当前保守基线为 **70/100**，距离 95 分目标 **25 分**。`npm run score` 只把本地可复现门禁计为 automated PASS；真实 Atlas 权限/航班动态/履约、Alibaba Cloud 公网部署、Qoder 截图与正式视频分别保留为 `BLOCKED` 或 `HUMAN`，不会因为 README 或脚本存在而伪造通过。
+当前保守基线为 **71/100**，距离 95 分目标 **24 分**。`npm run score` 把本地可复现门禁和已记录的只读 live smoke 分开计分；真实 Atlas 履约/航班动态、Alibaba Cloud 公网部署、Qoder 截图与正式视频仍分别保留为 `BLOCKED` 或 `HUMAN`，不会因为 README 或脚本存在而伪造通过。
