@@ -73,4 +73,4 @@ hackathon 主题是 Agentic AI。我们用 Qoder 的方式本身就是 agentic �
 | `current-7-honest-banner.png` | 诚实的搜索失败横幅：无实时数据则不出推荐 | Flight = atlas-sandbox 真实搜索 |
 | `current-8-policy-pill.png` | Itinerary Lab Policy pill（AirAsia Fly-Thru · KLIA Terminal 2 · 60 min minimum + 90 min buffer · source 链接），68 个返回配对与组合卡 | Flight = atlas-sandbox 真实搜索 · 策略由 `connection-policies` 注册表解析 |
 | `current-9-scenario-replay.png` | 航司视图 Scenario replay 时间线（四步：3 完成 + 1 进行中）、insufficient 结论、干预提案与来源为 "Scenario replay · demo simulation" 的审计条目 | 确定性 demo fixture 回放（全模拟） |
-| `current-10-hosted-demo.png` | Vercel 托管 mock 构建的真实首屏（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill） | mock 静态托管构建（无凭据） |
+| `current-10-hosted-demo.png` | mock 构建的历史首屏截图（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill）；不代表当前公网 URL 可用 | mock 静态产物（无凭据）；新的托管入口需用 `recording-preflight` 验证 |

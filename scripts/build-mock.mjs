@@ -7,7 +7,7 @@
 //
 // Usage: npm run build:mock
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -35,4 +35,15 @@ function run(relativeBinPath, args) {
 console.log("[build:mock] VITE_FLIGHT_PROVIDER=mock VITE_AGENT_PROVIDER=mock");
 run(["typescript", "bin", "tsc"], []);
 run(["vite", "bin", "vite.js"], ["build"]);
+writeFileSync(
+  join(root, "dist", "mock-build-manifest.json"),
+  `${JSON.stringify({
+    schemaVersion: 1,
+    buildMode: "mock",
+    providers: { flight: "mock", agent: "mock" },
+    hosting: { kind: "static", api: "not-served" },
+    credentials: "not-included",
+    generatedBy: "npm run build:mock",
+  }, null, 2)}\n`,
+);
 console.log("[build:mock] done: dist/ is a static mock bundle (no /api, no credentials).");

@@ -1,59 +1,43 @@
 # Connection Integrity Agent — 3 分钟演示讲稿
 
-这是当前录屏与评审动线。旧 Seattle / Journey Risk Pricing 讲稿已归档至 `docs/legacy/`，仅是历史背景，不是当前产品说明。
+这是当前录屏与评审动线。English shot-by-shot reference is maintained in [DEMO_VIDEO_SCRIPT.md](DEMO_VIDEO_SCRIPT.md); judge/recording gates are in [JUDGE_PREFLIGHT.md](JUDGE_PREFLIGHT.md)。
 
 ## 先讲清两条案例线
 
-Seattle 是创始人亲历的**问题起点**：一次名义合规的 100 分钟转机，最终因为真实机场流程失败。它解释为什么“能卖”不等于“值得推荐”。
+Seattle 是创始人亲历的**问题起点**：一次名义合规的转机最终因为真实机场流程失败。它解释为什么“能卖”不等于“值得推荐”。
 
-PVG → KUL → SIN 是本产品的**第二个现场案例**：来自 ATRIP Sandbox 观察到的亚太报价快照，用于实际展示选择、公开检索、偏好理解与航司干预。不要把它讲成 Seattle 的同一条行程，也不要声称是实时库存或单一联票。
+PVG → KUL → SIN 是本产品的**第二个现场案例**：2026-08-24 从 ATRIP Sandbox 观察到的亚太报价快照，用来展示选择、公开检索、Agent trace、旅客 consent 与航司延误回放（delay replay）。不要把它讲成 Seattle 的同一条行程，也不要声称是实时库存或单一联票。
 
 ## 0:00–3:00 动线
 
 | 时间 | 操作 | 要说的话 |
 | --- | --- | --- |
-| 0:00–0:15 | 打开 `Connection Integrity` | “我的 Seattle 经历说明：合法中转不一定是好选择。我们不做黑盒误机概率，而是让用户购买前看见时间适配度、票务保障和替代方案。贯穿全程的一条原则：LLM 只理解和表达，从不排序、订票或执行——每个输出都过白名单校验。” |
-| 0:15–0:35 | 展示 KUL 两张卡 | “这是第二个现场案例：ATRIP 观察到的 PVG→KUL→SIN 报价。115 分钟更便宜，185 分钟多 70 分钟缓冲，差价 $14.19。它们是报价快照，不是当前实时库存。Agent 调用失败时页面不出结论，绝不编造。” |
-| 0:35–1:05 | 选任一张，点 `Ask agent which itinerary to choose` | “Agent 先检索官方规则和公开流程，再比较两张票。检索是有界的：第一轮找不到相关官方来源时，它会改写查询再搜一轮，最多两轮，轮次和改写后的查询都如实显示。它必须选一张：185 分钟相对 60 分钟规则多 125 分钟，因此是 `Likely comfortable`；是否有联票/行李直挂则独立显示为 `Ticket protection not confirmed`。未知保障不能被偷换成‘时间不够’。” |
-| 1:05–1:20 | 展开 `How this judgment was made` | “这里展示 60 分钟公开规则加 90 分钟规划缓冲——这两个数字来自已注册的 KUL/AirAsia 策略条目，`Policy entry` 行如实披露是哪一条；再加模型、来源数、检索轮次、耗时和缓存状态。它是可见的规划启发式，不是历史误机概率；换航司或机场只需注册新策略条目，没有配置参数的航线会如实说明。” |
-| 1:20–1:40 | 点 `Use recommended itinerary` | “旅客明确同意后，系统只把已选行程带入航司观察。没有创建订单，也没有自动改签。” |
-| 1:40–2:00 | 切 `Airline: intervene after an event` | “这张页面处理已选行程。为了展示干预，可以保留默认的 115 分钟短行程运营测试：模拟入站延误 60 分钟后，只剩 55 分钟，低于公开规则，才准备一份需要旅客同意的替代方案。” |
-| 2:00–2:35 | 回顶栏 `Try an itinerary`，点 PVG→KUL→SIN 预设 | “这才是实时试用面：两次 ATRIP 搜索返回的每一条可衔接组合都会被展示；低于 60 分钟筛选线、无时刻或超过 18 小时的组合不会被推荐。由于是两次独立搜索，页面明确写 self-transfer，不冒充联票。” |
-| 2:35–2:55 | 点 `Comfortable connection`，再输入“我不想赶转机，也不想等十几个小时” | “用户可以点偏好，也可以用人话。LLM 只理解偏好；排序是可复算的。‘舒适中转’先达到 150 分钟目标，再避免 15 小时这种无意义等待。” |
-| 2:55–3:00 | 收尾 | “真实报价、透明组合、Agent 理解偏好、旅客同意、航司模拟干预：每一步都清楚哪些事实已证实、哪些仍未知。” |
+| 0:00–0:15 | 打开 `Connection Integrity`，停在 hero 和价值卡 | “Seattle 的经历说明：合法中转不一定是好选择。我们不做黑盒误机概率，而是让用户购买前看见时间适配、票务保障和替代方案；LLM 只理解和表达，不排序、订票或执行。” |
+| 0:15–0:35 | 展示 `PVG → KUL → SIN` 两张卡 | “这是第二个现场案例，不是 Seattle 的同一行程。115 分钟 / $133.91 与 185 分钟 / $148.10 是 ATRIP Sandbox snapshot；本次用 mock 回放，不说成当前库存。” |
+| 0:35–1:05 | 选短卡，点击 `Ask agent which itinerary to choose`，展开 `Agent trace / How this judgment was made` | “live 时是最多两轮的官方证据检索；mock 时明确写 `Demo agent fixture`。来源层级、轮次、Policy entry、Result origin 都可见；时间适配和 ticket protection 分开。” |
+| 1:05–1:20 | 指向 `Policy entry` 与 60 + 90 行 | “60 + 90 来自已注册的 KUL/AirAsia policy entry，不是所有机场的硬编码规则。无匹配策略会走 no-policy path。” |
+| 1:20–1:40 | 点击 `Use recommended itinerary` | “这是 traveller consent gate。没有明确同意，行程不会进入航司观察；这里不创建 booking。” |
+| 1:40–2:00 | 打开 `Airline: intervene after an event` | “这里接收同一条已选行程。默认值可以用于脚本回放，画面会标为 `default demo itinerary` 或 traveller-selected itinerary。” |
+| 2:00–2:28 | 点击 `Run scenario`，展示 +60 分钟、55 分钟剩余、insufficient 和提案 | “这是确定性的延误回放（delay replay）：+60 让 115 变成 55，低于 60 分钟公开下限，系统起草需同意的替代方案。`Simulated operational event` 说明没有接实时航班动态。” |
+| 2:28–2:40 | 展示 `docs/QODER_USAGE.md`、`npm run judge-preflight` 输出和 deliberate-failure test | “Qoder evidence 有会话、Quest、Canvas、对抗审计和验收索引；preflight 对故意缺失的 provenance 文案会报 `FAIL`，不是只做截图。” |
+| 2:40–2:55 | 展示 `docs/SCOPE_AND_LIMITATIONS.md` 与 `mock-build-manifest.json` | “边界明确：booking、rebooking、payment、实时航班动态和云部署都未声称完成；静态 mock 入口不提供 `/api`。live、mock、snapshot、unavailable 是不同状态。” |
+| 2:55–3:00 | 展示本机审计轨迹并收尾 | “同意、注入和提案都写入带时间戳的本机审计轨迹。自有公网 URL 只有通过 recording-preflight 后才分享：先选对，再守住。” |
 
 ## 录制前验收
 
-1. 顶栏显示 `Flight: atlas-sandbox` 时，`Try an itinerary` 的结果才是当次 ATRIP Sandbox 返回；若显示 mock 或 fallback，必须照实说明。
-2. KUL 主页面所有 Agent 结论必须显示 `Agent-generated · <模型>`；调用失败时只能显示“未生成结论”，不能把 fixture 冒充现场结果。
-3. `Agent research` 中每条链接都要有“它支持什么”的摘要；第一轮无相关官方来源时会改写查询再检索一轮（最多两轮），两轮后仍无官方来源则失败关闭，不给伪研究结论。
-4. `Try an itinerary` 必须可展开显示所有符合筛选条件的 self-transfer 组合；不能出现 0 分钟或负数中转。
-5. 自然语言“不要赶，也不要等十几个小时”应推荐接近 150 分钟目标的舒适组合，而非最长等待。
-6. 航司页要么显示旅客确认后带入的航班，要么明确标注 `default demo itinerary`。
-7. 所有航司 proposal、订单和改签都要带 demo / consent 说明；本项目没有真实服务能力。
-
-## 可靠性设计说明（含演示操作建议）
-
-研究链路的可靠性来自五层设计，全部是产品机制而非临时补救，演示时可以照实讲：
-
-1. **有界两轮检索**：第一轮找不到相关官方来源时改写查询再检索一轮，最多两轮；轮次与改写后的查询在界面如实披露。`npm run smoke:research` 门禁持续复核该链路（最近一次实测：status=200、attempts=2、official 来源命中）。
-2. **空内容自动回退**：thinking 合成偶发空回复时，服务端自动以非 thinking 模式重试一次并记录诊断日志（不含密钥与推理内容）——用户侧无感。
-3. **失败关闭的诚实披露**：两轮后仍无官方来源即不出结论；任一依赖不可用时页面显示"未生成结论"或 `Demo agent fixture` 标注，绝不编造。这是卖点，照实说："证据不足就不出结论。"
-4. **缓存策略**：同一评估 30 分钟内复用浏览器缓存，界面 `Result origin` 行明确标注命中缓存——它是产品特性，不是瑕疵。
-5. **mock 降级**：未配置凭据时整条治理链路仍可在 mock 模式完整演示。`npm run smoke:server` 门禁持续复核失败关闭形状（离线 8 项全过）。
-
-演示操作建议（顺着设计做即可）：
-
-1. **让缓存自然覆盖录制**：正式录制前把旅客侧 `Ask agent`（两张卡各一次）与航司侧 `Recheck`（含 +60 延误）完整跑一遍，30 分钟缓存即可覆盖整段录制；超过 25 分钟重新跑一遍即可。
-2. **等待镜头**：实时研究正常 30–60 秒、预算上限 300 秒。把等待剪进转场，或直接展示缓存命中的 `Result origin` 行。
-3. **备份录制**：提前完整录一条备份视频；正式录制只调顶栏 provider 徽章与案例页面，避免引入新改动。
+1. 运行 `npm run judge-preflight` 与 `npm run recording-preflight`，`FAIL` 必须为零；`WAIVED` 只表示 live/provider 或公网项未执行。
+2. 默认用 `npm run build:mock` 与 `npm run preview -- --host 127.0.0.1 --port 4173` 录制。顶栏若是 `mock`，口播必须说 mock；若是 snapshot，必须说 snapshot。
+3. 若使用 live Agent/Atlas，录制当天另跑 live smoke 并保留实际结果；不能用 mock 门禁证明 live 可用。
+4. 每个 Agent 结论都要保留 `Agent-generated · <model>` 或 `Demo agent fixture`；调用不可用时只能显示 unavailable/不出结论。
+5. 所有组合都要标注 self-transfer；航司 proposal、订单和改签都必须带 demo/consent 说明。本项目没有真实 booking 或 rebooking 能力。
+6. 录屏不得出现 `.env.local`、API key、原始 prompt 或私有思维链。
 
 ## 评委常问
 
 | 问题 | 回答 |
 | --- | --- |
-| 这和 OTA 已有的中转提示有什么本质区别？ | OTA 只给你一个“时间紧”的结论；我们展示证据链（必须有官方来源才出评估）、判断规则（60+90 分钟可见启发式）和判断边界（哪些事实仍未知），并且 Agent 只说话不执行，排序与同意全在确定性引擎里。 |
-| 为什么不用准确误机概率？ | 当前只有 ATRIP 报价与公开证据，没有历史机场流程样本。我们明确使用可见的时间规划启发式，而不伪造概率。 |
-| self-transfer 的 60 分钟是否就是 MCT？ | 不是。它是从 KUL 案例公开政策推导出的产品筛选线；独立组合仍需要自行确认签证、行李、入境和再次值机流程。 |
-| LLM 真正做了什么？ | 它检索公开转机证据、把自然语言映射为偏好、生成结构化比较；每个输出在进入界面前都会逐字段白名单校验（研究请求的输入在服务端校验），失败则不出结论。它不制造航班、时刻、PNR，也不执行改签。 |
-| Seattle 和 KUL 是同一案例吗？ | 不是。Seattle 是创始痛点；KUL 是 ATRIP 支持的第二个亚太现场案例。 |
+| Seattle 和 KUL 是同一案例吗？ | 不是。Seattle 是痛点起点；PVG → KUL → SIN 是 ATRIP 支持的第二个亚太 snapshot 案例。 |
+| 为什么不用准确误机概率？ | 当前只有报价快照与公开证据，没有历史机场流程样本；我们使用可见的规划规则，不伪造概率。 |
+| 60 分钟是不是所有机场的 MCT？ | 不是。它是 KUL/AirAsia 注册策略的公开参数；独立 self-transfer 仍需确认签证、行李、入境和再次值机流程。 |
+| LLM 真正做了什么？ | 它检索/表达/理解偏好；排序、白名单校验、consent 和模拟动作由确定性代码控制。 |
+| 你们已经完成 booking/rebooking 或云部署了吗？ | 没有。当前是 mock/static 可复现 demo；实时 provider、真实服务能力和自有公网部署都要单独验证，并在材料中标为 live/unavailable 或 WAIVED。 |

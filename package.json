@@ -11,6 +11,9 @@
     "smoke:server": "node scripts/server-smoke.mjs",
     "test": "node scripts/run-tests.mjs",
     "verify": "node scripts/verify-acceptance.mjs",
+    "judge-preflight": "node scripts/judge-preflight.mjs --mode judge",
+    "recording-preflight": "node scripts/judge-preflight.mjs --mode recording",
+    "preflight": "node scripts/judge-preflight.mjs --mode judge",
     "smoke:research": "node scripts/connection-research-smoke.mjs",
     "preview": "vite preview"
   },

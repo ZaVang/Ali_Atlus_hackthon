@@ -65,20 +65,17 @@ The project was developed end-to-end through Qoder's agentic workflow. A full us
 - **Agent-generated acceptance gate.** `npm run verify` was produced from the contract's acceptance checks, so each change re-verifies scenario numbers, the registered KUL policy's 60+90 rubric, the policy registry assertions, every disclosure label and the no-probability rule.
 - **Provider-level engineering.** The server-side service (`server/`), whitelist validation and fail-closed degradation paths were implemented and refactored through agent-driven edits with `tsc` as the regression gate.
 
-## Live demo (online experience)
+## Demo entry and submission-time hosting
 
-A fully static **mock-mode** build is deployed so reviewers can experience the whole governance surface with zero setup and zero credentials.
+No temporary or anonymous hosted URL is committed. The canonical judge entry is the reproducible **mock** build; a public URL is a submission-time value that must be owned, replaceable and checked before it is shared.
 
-- **Hosted entry:** <https://temporary-prompt-sable-7w2ezf1.vercel.app> — an anonymous temporary Vercel deployment produced by `npm run build:mock`; it **expires ~60 minutes** after creation. To make it permanent, either open the claim link printed when the deployment was created (`https://vercel.com/claim-deployment?code=6d460cce-0698-4747-bac0-745bac2c1633`, sign in to Vercel and the deployment becomes yours), or redeploy your own instance after `npx vercel login`:
+- **Local judge entry:** run `npm run build:mock`, then serve `dist/` with `npm run preview -- --host 127.0.0.1 --port 4173`. The bundle includes `mock-build-manifest.json`, which declares `Flight: mock`, `Agent: mock`, static hosting and `api: not-served`.
+- **Stable public entry:** after deploying only that `dist/` to an owned static host, set `PUBLIC_DEMO_URL` locally and run `npm run recording-preflight -- --public-url $env:PUBLIC_DEMO_URL --require-public-url`. The URL is intentionally not stored in this repository.
+- **What mock mode covers:** the complete governance surface with no credentials — the PVG → KUL → SIN offer comparison (labelled ATRIP snapshot fixtures), the agent recommendation (labelled demo fixture), the Itinerary Lab (mock fixtures, honest empty-result degradation, policy-entry disclosure for the registered KUL/AirAsia 60 + 90 entry and the explicit no-policy path), and the airline-side delay scenario replay (deterministic, labelled simulation). It does not include live Tavily/LLM research or live flight status.
+- **Live mode:** run `npm run dev` locally with credentials in `.env.local`, or run `npm run build` plus `npm run server` on an owned server. A static build intentionally serves no `/api`; booking, payment, rebooking and cloud deployment are not claimed complete.
+- **Preflight:** `npm run judge-preflight` checks the mock artifact and boundaries; `npm run recording-preflight` additionally checks the 180-second script, the 15-second opening, bilingual demo anchors and the four official score dimensions. See [Judge and recording preflight](docs/JUDGE_PREFLIGHT.md).
 
-```powershell
-npm run build:mock; npx vercel deploy dist --prod --yes
-```
-
-- **What mock mode covers:** the complete governance surface with no credentials — the PVG → KUL → SIN offer comparison (labelled ATRIP snapshot fixtures), the agent recommendation (labelled demo fixture), the Itinerary Lab (mock fixtures, honest empty-result degradation, policy-entry disclosure for the registered KUL/AirAsia 60 + 90 entry and the explicit no-policy path), and the airline-side delay scenario replay (deterministic, labelled simulation). It does not include live Tavily/LLM research or live flight status — those require the live mode below.
-- **Live mode:** run `npm run dev` (or `npm run server`) locally with credentials in `.env.local` as described in [Run locally](#run-locally); the hosted static build intentionally serves no `/api`.
-
-`npm run build:mock` is a one-command, Windows-PowerShell-safe wrapper (`scripts/build-mock.mjs`) that forces `VITE_FLIGHT_PROVIDER=mock` and `VITE_AGENT_PROVIDER=mock` as process environment variables (overriding any `.env.local` values), runs the type check plus production build, and outputs a credential-free `dist/` (no secret carries a `VITE_` prefix, so none can be bundled).
+`npm run build:mock` is a one-command, Windows-PowerShell-safe wrapper (`scripts/build-mock.mjs`) that forces `VITE_FLIGHT_PROVIDER=mock` and `VITE_AGENT_PROVIDER=mock` as process environment variables (overriding any `.env.local` values), runs the type check plus production build, writes the static-hosting manifest, and outputs a credential-free `dist/` (no secret carries a `VITE_` prefix, so none can be bundled).
 
 ## Run locally
 
@@ -98,7 +95,7 @@ npm run build
 
 The server-side logic for `/api/atlas`, `/api/agent/chat` and `/api/agent/connection-research` lives in `server/` (`server/logic.mjs`). In dev mode the Vite dev server mounts those exact handlers as middlewares; for deployment, run `npm run server` — a dependency-free Node HTTP service (port 8787, configurable via `PORT`) that serves the three endpoints and, once `npm run build` has produced `dist/`, the built UI from the same process. A static build alone does not serve `/api`. Booking, payment and servicing remain out of scope.
 
-`npm run verify` runs the acceptance gate: a type-checked production build, numeric unit tests for the rubric boundaries (under the registered KUL policy's 60+90), the screening/ranking rules, the policy registry and the brief whitelist, plus automated checks that the shipped bundle honours the contract's acceptance criteria (scenario numbers, the visible rubric disclosure, every disclosure label, and the absence of any uncalibrated probability claim).
+`npm run verify` runs the acceptance gate: a type-checked production build, numeric unit tests for the rubric boundaries (under the registered KUL policy's 60+90), the screening/ranking rules, the policy registry and the brief whitelist, plus automated checks that the shipped bundle honours the contract's acceptance criteria (scenario numbers, the visible rubric disclosure, every disclosure label, and the absence of any uncalibrated probability claim). `live`, `mock`, `snapshot` and `unavailable` are separate states; a green mock gate does not prove a live provider or public deployment.
 
 ## Legacy background
 

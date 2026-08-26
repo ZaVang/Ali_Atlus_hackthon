@@ -65,20 +65,17 @@ interface ConnectionPolicy {
 - **Agent 生成的验收门禁**：`npm run verify` 由契约验收项生成，每次改动都会复核案例数值、已注册 KUL 策略的 60+90 规则、策略注册表断言、全部披露标签与"无概率声称"规则。
 - **Provider 层工程**：服务端模块（`server/`）、白名单校验与失败关闭降级路径均通过 agent 驱动的编辑实现与重构，以 `tsc` 作为回归门禁。
 
-## 在线体验（Live demo）
+## Demo 入口与提交前托管
 
-纯静态 **mock 模式**构建已部署为公开页面，评委可零安装、零凭据体验完整治理面。
+仓库不提交任何临时或匿名公网 URL。评委的规范入口是可重复的 **mock** 构建；公网 URL 只在提交前配置，必须是自有、可替换、经过检查的入口。
 
-- **托管入口**：<https://temporary-prompt-sable-7w2ezf1.vercel.app> —— 由 `npm run build:mock` 产出的 Vercel 匿名临时部署，创建后约 **60 分钟过期**。如需永久入口：打开部署创建时打印的认领链接（`https://vercel.com/claim-deployment?code=6d460cce-0698-4747-bac0-745bac2c1633`，登录 Vercel 后该部署即归你所有）；或在 `npx vercel login` 后重新部署你自己的实例：
+- **本地评委入口**：运行 `npm run build:mock`，再用 `npm run preview -- --host 127.0.0.1 --port 4173` 提供 `dist/`。产物含 `mock-build-manifest.json`，声明 `Flight: mock`、`Agent: mock`、静态托管和 `api: not-served`。
+- **稳定公网入口**：只把这份 `dist/` 部署到自有静态主机，在本机设置 `PUBLIC_DEMO_URL`，再执行 `npm run recording-preflight -- --public-url $env:PUBLIC_DEMO_URL --require-public-url`。URL 有意不写入仓库。
+- **mock 模式能力范围**：无需任何凭据即可体验完整治理面——PVG → KUL → SIN 报价对比（标注为 ATRIP 快照 fixture）、Agent 推荐（标注 Demo fixture）、Itinerary Lab（mock fixture、诚实的空结果降级、已注册 KUL/AirAsia 60 + 90 策略条目的披露与显式无策略路径）、航司侧延误场景回放（确定性、明确标注的模拟）。不含实时 Tavily/LLM 证据研究与实时航班动态。
+- **live 模式**：按[本地运行](#本地运行)在本机配置 `.env.local` 后运行 `npm run dev`，或在自有服务上运行 `npm run build` 加 `npm run server`。纯静态构建按设计不提供 `/api`；预订、支付、改签和云部署均未声称完成。
+- **Preflight**：`npm run judge-preflight` 检查 mock 产物与边界；`npm run recording-preflight` 额外检查 180 秒脚本、15 秒开场、双语演示锚点和四个官方评分维度。详见 [评委与录制前置检查](docs/JUDGE_PREFLIGHT.md)。
 
-```powershell
-npm run build:mock; npx vercel deploy dist --prod --yes
-```
-
-- **mock 模式能力范围**：无需任何凭据即可体验完整治理面——PVG → KUL → SIN 报价对比（标注为 ATRIP 快照 fixture）、Agent 推荐（标注 Demo fixture）、Itinerary Lab（mock fixture、诚实的空结果降级、已注册 KUL/AirAsia 60 + 90 策略条目的披露与显式无策略路径）、航司侧延误场景回放（确定性、明确标注的模拟）。不含实时 Tavily/LLM 证据研究与实时航班动态——这些需要下文的 live 模式。
-- **live 模式**：按[本地运行](#本地运行)在本机配置 `.env.local` 后运行 `npm run dev`（或 `npm run server`）；托管的静态构建按设计不提供 `/api`。
-
-`npm run build:mock` 是一键、Windows PowerShell 兼容的包装脚本（`scripts/build-mock.mjs`）：以进程环境变量强制 `VITE_FLIGHT_PROVIDER=mock`、`VITE_AGENT_PROVIDER=mock`（覆盖任何 `.env.local` 值），执行类型检查与生产构建，产出无凭据的 `dist/`（没有任何密钥带 `VITE_` 前缀，因此不可能被打包）。
+`npm run build:mock` 是一键、Windows PowerShell 兼容的包装脚本（`scripts/build-mock.mjs`）：以进程环境变量强制 `VITE_FLIGHT_PROVIDER=mock`、`VITE_AGENT_PROVIDER=mock`（覆盖任何 `.env.local` 值），执行类型检查与生产构建，写入静态托管 manifest，产出无凭据的 `dist/`（没有任何密钥带 `VITE_` 前缀，因此不可能被打包）。
 
 ## 本地运行
 
@@ -105,7 +102,7 @@ npm run build
 
 `/api/atlas`、`/api/agent/chat` 与 `/api/agent/connection-research` 的服务端逻辑位于 `server/`（`server/logic.mjs`）。dev 模式下 Vite dev server 以中间件形式挂载同一套 handler；部署时运行 `npm run server`——一个零额外依赖的 Node HTTP 服务（端口 8787，可用 `PORT` 覆盖），同时提供三个端点，并在 `npm run build` 产出 `dist/` 后由同一进程托管构建后的 UI。纯静态构建本身不提供 `/api`。预订、支付与售后服务仍不在本项目范围内。
 
-`npm run verify` 是验收门禁：执行带类型检查的生产构建，运行针对规则边界（在已注册 KUL 策略的 60+90 下）、筛选/排序规则、策略注册表与 brief 白名单的数值化单元测试，并自动验证产物遵守契约的验收标准（案例数值、可见的规则披露、全部披露标签，且不含任何未校准的概率声称）。
+`npm run verify` 是验收门禁：执行带类型检查的生产构建，运行针对规则边界（在已注册 KUL 策略的 60+90 下）、筛选/排序规则、策略注册表与 brief 白名单的数值化单元测试，并自动验证产物遵守契约的验收标准（案例数值、可见的规则披露、全部披露标签，且不含任何未校准的概率声称）。`live`、`mock`、`snapshot` 和 `unavailable` 是不同状态；mock 门禁通过不等于实时 provider 或公网部署已验证。
 
 ## 旧材料
 
