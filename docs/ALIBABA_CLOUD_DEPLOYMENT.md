@@ -1,6 +1,6 @@
 # Alibaba Cloud deployment contract / 阿里云部署契约
 
-This repository now has a container contract for an authorized Alibaba Cloud runtime. The deployment itself is intentionally not claimed as complete until a participant-owned Alibaba Cloud project, runtime, URL, and health check are available.
+This repository has an optional container contract for a future authorized Alibaba Cloud runtime. The current competition submission is intentionally local/demo-only because deployment access is not available; no public URL is claimed.
 
 ## Local proof
 

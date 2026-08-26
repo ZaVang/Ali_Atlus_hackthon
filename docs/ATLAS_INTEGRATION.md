@@ -25,6 +25,16 @@ Verified against the live Sandbox:
 - Rate limit: `search.do` defaults to 10 QPS; HTTP 429 responses carry `retryAfter`.
 - Until the account has a configured settlement currency, search requests must pass `"currency": "USD"`.
 
+### Flight-status boundary (verified 2026-08-26)
+
+Atlas documentation distinguishes three different capabilities that must not be collapsed into one claim:
+
+- Atlas has a real-time search API for flight options/availability, but the FAQ also explains that returned availability can come from Atlas cache. That is the capability exercised by this demo's `search.do` and `routingIdentifier` recheck.
+- Atlas exposes a `POST order.schedulechange` webhook contract for schedule-change notifications when the supported Atlas Email Service/API monitoring setup receives an airline change. This requires a booking/order context and an authorized callback configuration; it is not a free-form public flight-status feed.
+- Atlas's current post-booking service scope marks generic **Flight Status Inquiry** and **Confirm Protected Flight** as unsupported. The demo therefore keeps the airline-side `+60 min` event simulated and does not claim a live status or protection API.
+
+References: [API integration FAQ](https://resources.atriptech.com/frequently-asked-questions/api-integration-related-faqs), [schedule-change webhook](https://resources.atriptech.com/api-document/webhooks/schedule-change-notification), and [post-booking service scope](https://resources.atriptech.com/popular-topics/post-ticketing/atlas-after-sales-service-scope).
+
 Documented but not yet exercised: the identifier chain `routingIdentifier` → `sessionId` → `orderNo`, and the endpoints `verify.do`, `order.do`, `pay.do`, order query, and the void workflow `voidQuotation.do` → `void.do` → `queryVoidOrders.do`. The current demo does not call booking, payment, void or rebooking endpoints; the airline surface only prepares a consent-gated simulation. A future recovery flow must be re-validated after native change/servicing capability and permissions are confirmed.
 
 ### Sandbox route coverage (verified 2026-08-17)
