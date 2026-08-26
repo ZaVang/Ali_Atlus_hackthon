@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:mock": "node scripts/build-mock.mjs",
+    "server": "node server/index.mjs",
+    "smoke:server": "node scripts/server-smoke.mjs",
+    "test": "node scripts/run-tests.mjs",
     "verify": "node scripts/verify-acceptance.mjs",
+    "smoke:research": "node scripts/connection-research-smoke.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

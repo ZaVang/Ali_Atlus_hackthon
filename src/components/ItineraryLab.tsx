@@ -1,30 +1,24 @@
 // A purchase-time connection chooser. ATRIP is queried for two separate
 // point-to-point legs; this view only calls their time-compatible pairings
 // "self-transfer combinations" and never presents them as a single ticket.
-import { useMemo, useState } from "react";
-import type { ConnectionChoicePriority, FlightOffer, FlightSegment } from "../domain/types";
+import { useMemo, useRef, useState } from "react";
+import type { ConnectionChoicePriority, FlightOffer } from "../domain/types";
+import {
+  connectionFit,
+  makeCombinations,
+  compareCombinations,
+  firstSegment,
+  lastSegment,
+} from "../domain/itinerary-rules";
+import type { ItineraryCombination } from "../domain/itinerary-rules";
+import { resolveConnectionPolicy, NO_POLICY_DISCLOSURE } from "../domain/connection-policies.mjs";
+import type { ConnectionPolicy } from "../domain/connection-policies.mjs";
 import { useDemoSession } from "../state/session";
 import { formatClock, formatDuration, formatMoney, ProvenancePill } from "./shared";
 
 type SearchStatus = "idle" | "loading" | "ready" | "error";
 type PreferenceStatus = "idle" | "parsing" | "fallback";
 
-interface ItineraryCombination {
-  id: string;
-  inbound: FlightOffer;
-  outbound: FlightOffer;
-  connectionAirport: string;
-  connectionMinutes: number;
-  totalPrice: number;
-  currency: string;
-  finalArrival: string;
-}
-
-// A disclosed product screening floor derived from the KUL demo policy. It
-// is not asserted to be an MCT for an independently assembled self-transfer.
-const MINIMUM_SCREENING_MINUTES = 60;
-const PLANNING_BUFFER_MINUTES = 90;
-const MAX_CONNECTION_MINUTES = 18 * 60;
 const INITIAL_VISIBLE_COMBINATIONS = 6;
 
 const PREFERENCE_CARDS: Array<{ value: ConnectionChoicePriority; title: string; blurb: string }> = [
@@ -41,102 +35,42 @@ function validAirport(value: string): boolean {
   return /^[A-Z]{3}$/.test(value.trim().toUpperCase());
 }
 
-function firstSegment(offer: FlightOffer): FlightSegment | undefined {
-  return offer.segments[0];
-}
-
-// ATRIP's current routing identifier carries local wall-clock times without
-// an offset. Pairing happens at one airport, so compare those wall clocks
-// directly rather than letting the browser's timezone reinterpret them.
-function localWallClockMinutes(iso: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
-  if (!match) return null;
-  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5])) / 60_000;
-}
-
-function lastSegment(offer: FlightOffer): FlightSegment | undefined {
-  return offer.segments[offer.segments.length - 1];
-}
-
 function flightName(offer: FlightOffer): string {
   return offer.segments.length > 0 ? offer.segments.map((segment) => segment.flightNumber).join(" + ") : offer.id.slice(-8);
 }
 
-function connectionFit(connectionMinutes: number): "comfortable" | "tight" | "insufficient" {
-  if (connectionMinutes < MINIMUM_SCREENING_MINUTES) return "insufficient";
-  if (connectionMinutes < MINIMUM_SCREENING_MINUTES + PLANNING_BUFFER_MINUTES) return "tight";
-  return "comfortable";
-}
-
-function fitLabel(connectionMinutes: number): string {
-  const fit = connectionFit(connectionMinutes);
+function fitLabel(connectionMinutes: number, policy: ConnectionPolicy | null): string {
+  if (!policy) return "No configured policy";
+  const fit = connectionFit(connectionMinutes, policy);
   return fit === "comfortable" ? "Likely comfortable" : fit === "tight" ? "Tight" : "Insufficient";
 }
 
-function fitClassName(connectionMinutes: number): string {
-  const fit = connectionFit(connectionMinutes);
+function fitClassName(connectionMinutes: number, policy: ConnectionPolicy | null): string {
+  if (!policy) return "risk-medium";
+  const fit = connectionFit(connectionMinutes, policy);
   return fit === "comfortable" ? "risk-low" : fit === "tight" ? "risk-medium" : "risk-high";
 }
 
-function makeCombinations(inbound: FlightOffer[], outbound: FlightOffer[]): ItineraryCombination[] {
-  const combinations: ItineraryCombination[] = [];
-  for (const inOffer of inbound) {
-    const inboundArrival = lastSegment(inOffer);
-    if (!inboundArrival) continue;
-    for (const outOffer of outbound) {
-      const outboundDeparture = firstSegment(outOffer);
-      const outboundArrival = lastSegment(outOffer);
-      if (!outboundDeparture || !outboundArrival) continue;
-      if (inboundArrival.arrivalAirport !== outboundDeparture.departureAirport) continue;
-      const departureMinutes = localWallClockMinutes(outboundDeparture.departureTime);
-      const arrivalMinutes = localWallClockMinutes(inboundArrival.arrivalTime);
-      const connectionMinutes = departureMinutes === null || arrivalMinutes === null ? Number.NaN : departureMinutes - arrivalMinutes;
-      // A pair is only eligible for ranking if it clears the published
-      // 60-minute disclosed screening floor. Below-floor pairs are not merely "tight";
-      // they are impossible for this chooser and must never be recommended.
-      if (!Number.isFinite(connectionMinutes) || connectionMinutes < MINIMUM_SCREENING_MINUTES || connectionMinutes > MAX_CONNECTION_MINUTES) continue;
-      if (inOffer.currency !== outOffer.currency) continue;
-      combinations.push({
-        id: `${inOffer.id}::${outOffer.id}`,
-        inbound: inOffer,
-        outbound: outOffer,
-        connectionAirport: inboundArrival.arrivalAirport,
-        connectionMinutes,
-        totalPrice: inOffer.totalPrice + outOffer.totalPrice,
-        currency: inOffer.currency,
-        finalArrival: outboundArrival.arrivalTime,
-      });
-    }
-  }
-  return combinations;
-}
-
-function compareCombinations(priority: ConnectionChoicePriority, a: ItineraryCombination, b: ItineraryCombination): number {
-  const fitValue = (item: ItineraryCombination) => connectionFit(item.connectionMinutes) === "comfortable" ? 2 : connectionFit(item.connectionMinutes) === "tight" ? 1 : 0;
-  const finalArrival = (item: ItineraryCombination) => localWallClockMinutes(item.finalArrival) ?? Number.POSITIVE_INFINITY;
-  switch (priority) {
-    case "lowest-cost":
-      return a.totalPrice - b.totalPrice || fitValue(b) - fitValue(a) || finalArrival(a) - finalArrival(b);
-    case "earliest-arrival":
-      return finalArrival(a) - finalArrival(b) || fitValue(b) - fitValue(a) || a.totalPrice - b.totalPrice;
-    case "largest-buffer":
-      // "More buffer" means reach the published minimum plus planning buffer,
-      // not maximise airport waiting. Once both options are comfortable, the
-      // one closest to the 150-minute target wins.
-      return fitValue(b) - fitValue(a)
-        || Math.abs(a.connectionMinutes - (MINIMUM_SCREENING_MINUTES + PLANNING_BUFFER_MINUTES)) - Math.abs(b.connectionMinutes - (MINIMUM_SCREENING_MINUTES + PLANNING_BUFFER_MINUTES))
-        || a.totalPrice - b.totalPrice
-        || finalArrival(a) - finalArrival(b);
-  }
-}
-
-function rankingExplanation(priority: ConnectionChoicePriority, option: ItineraryCombination): string {
+function rankingExplanation(priority: ConnectionChoicePriority, option: ItineraryCombination, policy: ConnectionPolicy | null): string {
   if (priority === "lowest-cost") return `Lowest combined fare among the compatible pairs: ${formatMoney(option.totalPrice, option.currency)}.`;
   if (priority === "earliest-arrival") return `Earliest final arrival among the compatible pairs: ${formatClock(option.finalArrival)}.`;
-  return `Reaches the ${formatDuration(MINIMUM_SCREENING_MINUTES + PLANNING_BUFFER_MINUTES)} comfort target without an unnecessarily long wait: ${formatDuration(option.connectionMinutes)} at ${option.connectionAirport}.`;
+  if (!policy) return `No configured policy for ${option.connectionAirport}, so pairs are ordered by arrival time instead of an invented buffer goal: ${formatDuration(option.connectionMinutes)} at ${option.connectionAirport}.`;
+  return `Reaches the ${formatDuration(policy.publishedMinimumMinutes + policy.planningBufferMinutes)} comfort target of the ${policy.label} policy without an unnecessarily long wait: ${formatDuration(option.connectionMinutes)} at ${option.connectionAirport}.`;
 }
 
-function CombinationCard({ option, selected, recommended, onChoose }: { option: ItineraryCombination; selected: boolean; recommended: boolean; onChoose: () => void }) {
+/** Discloses which registered policy entry drives the time-fit thresholds. */
+function PolicyPill({ policy }: { policy: ConnectionPolicy }) {
+  const parameters = `${policy.publishedMinimumMinutes} min published minimum + ${policy.planningBufferMinutes} min planning buffer`;
+  return (
+    <span className="pill">
+      Policy: {policy.label} · {parameters}
+      {policy.policySource.illustrative ? " · illustrative template, not a verified policy" : ""}
+      {policy.policySource.url ? <> · <a href={policy.policySource.url} target="_blank" rel="noreferrer">source</a></> : ""}
+    </span>
+  );
+}
+
+function CombinationCard({ option, selected, recommended, policy, onChoose }: { option: ItineraryCombination; selected: boolean; recommended: boolean; policy: ConnectionPolicy | null; onChoose: () => void }) {
   const inboundArrival = lastSegment(option.inbound)!;
   const outboundDeparture = firstSegment(option.outbound)!;
   const outboundArrival = lastSegment(option.outbound)!;
@@ -148,7 +82,7 @@ function CombinationCard({ option, selected, recommended, onChoose }: { option: 
       </div>
       <div className="offer-price">{formatMoney(option.totalPrice, option.currency)}</div>
       <div className="offer-route"><strong>{flightName(option.inbound)}</strong> → <strong>{flightName(option.outbound)}</strong></div>
-      <div className="muted small">{option.connectionAirport} {formatClock(inboundArrival.arrivalTime)} → {formatClock(outboundDeparture.departureTime)} · {formatDuration(option.connectionMinutes)} <span className={`badge ${fitClassName(option.connectionMinutes)}`}>{fitLabel(option.connectionMinutes)}</span></div>
+      <div className="muted small">{option.connectionAirport} {formatClock(inboundArrival.arrivalTime)} → {formatClock(outboundDeparture.departureTime)} · {formatDuration(option.connectionMinutes)} <span className={`badge ${fitClassName(option.connectionMinutes, policy)}`}>{fitLabel(option.connectionMinutes, policy)}</span></div>
       <div className="muted small">Final arrival {formatClock(outboundArrival.arrivalTime)} · Ticket protection not confirmed from two independent offers.</div>
     </button>
   );
@@ -170,14 +104,23 @@ export default function ItineraryLab() {
   const [agentNote, setAgentNote] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  // Preset buttons can start another search while a previous request is still
+  // in flight. Only the latest generation may commit results, so a slow Atlas
+  // response can never overwrite the route the traveller most recently chose.
+  const searchGeneration = useRef(0);
+  // Resolved connection policy for the searched route: undefined = no search
+  // yet, null = explicit no-policy path (honest disclosure), otherwise the
+  // registered entry driving every threshold on this page.
+  const [policy, setPolicy] = useState<ConnectionPolicy | null | undefined>(undefined);
 
-  const compatible = useMemo(() => makeCombinations(inbound, outbound), [inbound, outbound]);
-  const ranked = useMemo(() => [...compatible].sort((a, b) => compareCombinations(priority, a, b)), [compatible, priority]);
+  const compatible = useMemo(() => makeCombinations(inbound, outbound, policy ?? null), [inbound, outbound, policy]);
+  const ranked = useMemo(() => [...compatible].sort((a, b) => compareCombinations(priority, a, b, policy ?? null)), [compatible, priority, policy]);
   const recommended = ranked[0] ?? null;
   const visible = showAll ? ranked : ranked.slice(0, INITIAL_VISIBLE_COMBINATIONS);
   const selected = compatible.find((item) => item.id === selectedId) ?? recommended;
 
   async function runSearch(rawOrigin: string, rawConnection: string, rawDestination: string, rawDate: string) {
+    const generation = ++searchGeneration.current;
     const normalizedOrigin = rawOrigin.trim().toUpperCase();
     const normalizedConnection = rawConnection.trim().toUpperCase();
     const normalizedDestination = rawDestination.trim().toUpperCase();
@@ -193,22 +136,31 @@ export default function ItineraryLab() {
     setMessage(null);
     setSelectedId(null);
     setShowAll(false);
+    setInbound([]);
+    setOutbound([]);
+    // Resolve the registered policy entry for this route before searching; a
+    // null result takes the explicit no-policy path disclosed in the results.
+    const resolvedPolicy = resolveConnectionPolicy({ connectionAirport: normalizedConnection });
+    setPolicy(resolvedPolicy);
     try {
       const [first, second] = await Promise.all([
         providers.flights.searchOffers({ origin: normalizedOrigin, destination: normalizedConnection, departDate: rawDate }),
         providers.flights.searchOffers({ origin: normalizedConnection, destination: normalizedDestination, departDate: rawDate }),
       ]);
+      if (generation !== searchGeneration.current) return;
       setInbound(first);
       setOutbound(second);
       setStatus("ready");
       if (first.length === 0 || second.length === 0) {
         setMessage("No live offer was returned for one leg. ATRIP Sandbox covers selected Asia-Pacific routes; try a verified chain below.");
-      } else if (makeCombinations(first, second).length === 0) {
+      } else if (makeCombinations(first, second, resolvedPolicy).length === 0) {
         setMessage("Offers were returned, but none form a time-compatible pair with a usable timetable. The app will not invent a connection.");
       }
     } catch {
+      if (generation !== searchGeneration.current) return;
       setInbound([]);
       setOutbound([]);
+      setPolicy(undefined);
       setStatus("error");
       setMessage("Flight search is unavailable. No recommendation has been generated from provider data.");
       notifySearchFallback();
@@ -268,8 +220,9 @@ export default function ItineraryLab() {
 
         <section className="card">
           <div className="card-title-row"><h2>Compatible combinations</h2><ProvenancePill label={`${compatible.length} returned pair${compatible.length === 1 ? "" : "s"}`} /></div>
-          <p className="muted">Top pick by transparent ranking: <strong>{rankingExplanation(priority, recommended!)}</strong> The time-fit labels use a disclosed 60-minute screening floor plus a 90-minute planning buffer; they are not missed-connection probabilities and do not certify an independent self-transfer.</p>
-          <div className="offer-list">{visible.map((option) => <CombinationCard key={option.id} option={option} selected={selected?.id === option.id} recommended={recommended?.id === option.id} onChoose={() => setSelectedId(option.id)} />)}</div>
+          {policy ? <div className="btn-row"><PolicyPill policy={policy} /></div> : <div className="banner banner-warning" role="status">{NO_POLICY_DISCLOSURE} Pairs below are kept by time compatibility only, and the time-fit labels do not judge them against any published minimum.</div>}
+          <p className="muted">Top pick by transparent ranking: <strong>{rankingExplanation(priority, recommended!, policy ?? null)}</strong> The time-fit labels use the resolved policy's disclosed screening floor plus planning buffer; they are not missed-connection probabilities and do not certify an independent self-transfer.</p>
+          <div className="offer-list">{visible.map((option) => <CombinationCard key={option.id} option={option} selected={selected?.id === option.id} recommended={recommended?.id === option.id} policy={policy ?? null} onChoose={() => setSelectedId(option.id)} />)}</div>
           {compatible.length > INITIAL_VISIBLE_COMBINATIONS && <div className="btn-row"><button type="button" className="btn btn-secondary" onClick={() => setShowAll((current) => !current)}>{showAll ? "Show fewer combinations" : `Show all ${compatible.length} compatible combinations`}</button></div>}
         </section>
 

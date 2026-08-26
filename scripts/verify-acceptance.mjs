@@ -62,7 +62,11 @@ check("dist: JavaScript bundle present", bundle.length > 0, "run after a success
 
 const required = [
   ["ticket-protection disclosure", "Ticket protection not confirmed"],
-  ["time-fit rubric visible", "60 min published minimum + 90 min planning buffer"],
+  ["time-fit rubric visible", "min published minimum +"],
+  ["policy parameters disclosed", "min planning buffer"],
+  ["registry-driven policy disclosure", "Policy: "],
+  ["registered KUL policy label shipped", "AirAsia Fly-Thru"],
+  ["no-policy honest disclosure", "No configured connection policy exists for this route"],
   ["live agent provenance label", "Agent-generated"],
   ["fixture agent provenance label", "Demo agent fixture"],
   ["simulated event disclosure", "Simulated operational event"],
@@ -71,6 +75,8 @@ const required = [
   ["self-transfer labelling", "self-transfer"],
   ["product promise", "Sellable"],
   ["rubric disclaimer", "not a historical missed-connection probability"],
+  ["honest search-failure banner", "no recommendation is generated until live provider data is available"],
+  ["audit trail disclosure", "Persisted in this browser"],
 ];
 for (const [name, text] of required) {
   check(`dist: required label "${name}"`, bundle.includes(text));
@@ -94,10 +100,19 @@ for (const [pattern, name] of forbidden) {
 function readSrc(rel) {
   return readFileSync(join(root, "src", rel), "utf8");
 }
+// Server-side governance now lives in the shared server/logic.mjs module,
+// mounted identically by the Vite dev middlewares and the standalone
+// Node service (server/index.mjs).
+const logicSource = readFileSync(join(root, "server/logic.mjs"), "utf8");
+const rulesSource = readSrc("domain/itinerary-rules.ts");
 const labSource = readSrc("components/ItineraryLab.tsx");
 check(
-  "behaviour: pairs below the 60-min screening floor are excluded before ranking",
-  /connectionMinutes < MINIMUM_SCREENING_MINUTES[\s\S]*?continue/.test(labSource),
+  "behaviour: pairs below the resolved policy's screening floor are excluded before ranking",
+  /connectionMinutes < policy\.publishedMinimumMinutes[\s\S]{0,200}?continue/.test(rulesSource) && labSource.includes('from "../domain/itinerary-rules"'),
+);
+check(
+  "behaviour: without a configured policy no borrowed floor applies (only positive windows survive)",
+  /connectionMinutes <= 0/.test(rulesSource) && labSource.includes("resolveConnectionPolicy"),
 );
 check(
   "behaviour: the chooser never labels assembled pairs as a single ticket",
@@ -116,12 +131,21 @@ check(
 );
 check(
   "behaviour: disclosed fallback sources stay visibly distinct from live research",
-  integritySource.includes("disclosed fallback input") && readSrc("../vite.config.ts").includes("disclosed: true"),
+  integritySource.includes("disclosed fallback input") && logicSource.includes("disclosed: true"),
 );
 const viteSource = readSrc("../vite.config.ts");
 check(
+  "architecture: Vite dev middlewares reuse the shared server/logic.mjs handlers",
+  viteSource.includes('from "./server/logic.mjs"') && viteSource.includes("createConnectionResearchHandler"),
+);
+const serverEntrySource = readFileSync(join(root, "server/index.mjs"), "utf8");
+check(
+  "architecture: the standalone Node service mounts the same shared handlers",
+  serverEntrySource.includes("./logic.mjs") && serverEntrySource.includes("createServer") && serverEntrySource.includes("createConnectionResearchHandler"),
+);
+check(
   "behaviour: research retries are bounded at two rounds and disclosed",
-  viteSource.includes("let attempts = 1;") && viteSource.includes("attempts = 2;") && viteSource.includes("retryQuery") && !viteSource.includes("attempts = 3"),
+  logicSource.includes("let attempts = 1;") && logicSource.includes("attempts = 2;") && logicSource.includes("retryQuery") && !logicSource.includes("attempts = 3"),
 );
 check(
   "behaviour: the client whitelists retry telemetry before showing it",
@@ -136,6 +160,49 @@ check(
   "behaviour: ATRIP segments map from structured fromSegments, not identifier regex guessing",
   sandboxSource.includes("mapSegments(routing.fromSegments)") && !sandboxSource.includes("parseSegmentsFromIdentifier"),
 );
+check(
+  "behaviour: empty thinking-synthesis content falls back to a non-thinking retry with diagnostics",
+  logicSource.includes("retrying with thinking disabled") && logicSource.includes("finish_reason="),
+);
+check(
+  "behaviour: cached briefs re-use the live provider's field-by-field whitelist",
+  integritySource.includes("isWhitelistedConnectionBrief") && readSrc("providers/bailian-agent.ts").includes("export function isWhitelistedConnectionBrief"),
+);
+check(
+  "behaviour: switching traveller/airline side clears the previous side's brief",
+  /function switchSide[\s\S]{0,300}?setBrief\(null\)/.test(integritySource),
+);
+check(
+  "behaviour: consent and proposal events persist to a timestamped local audit trail",
+  integritySource.includes("connection-integrity:audit-trail") && integritySource.includes("new Date().toISOString()"),
+);
+check(
+  "behaviour: the synthesis prompt enforces contract wording over the MCT abbreviation",
+  logicSource.includes("published minimum connection time"),
+);
+
+// --- 5b. Configurable evidence-threshold framework (policy registry) --------
+const registry = await import(new URL("../src/domain/connection-policies.mjs", import.meta.url));
+const kulEntry = registry.CONNECTION_POLICIES.find((entry) => entry.id === "kul-airasia-flythru");
+const nonKulEntries = registry.CONNECTION_POLICIES.filter((entry) => !entry.connectionAirports.includes("KUL"));
+check("policy registry: KUL/AirAsia entry carries the published 60 + 90 parameters", kulEntry?.publishedMinimumMinutes === 60 && kulEntry?.planningBufferMinutes === 90);
+check("policy registry: KUL entry whitelists the official evidence domain", Array.isArray(kulEntry?.officialDomains) && kulEntry.officialDomains.includes("airasia.com"));
+check("policy registry: at least one non-KUL entry proves extensibility", nonKulEntries.length >= 1);
+check("policy registry: unverified entries are honestly marked illustrative", nonKulEntries.every((entry) => entry.policySource.illustrative === true));
+check("policy registry: resolution uses verified KUL and ignores illustrative/unconfigured routes", registry.resolveConnectionPolicy({ connectionAirport: "KUL" })?.id === "kul-airasia-flythru" && registry.resolveConnectionPolicy({ connectionAirport: "PVG" }) === null && registry.resolveConnectionPolicy({ connectionAirport: "LHR" }) === null);
+check("policy registry: no-policy disclosure is non-empty", typeof registry.NO_POLICY_DISCLOSURE === "string" && registry.NO_POLICY_DISCLOSURE.length > 0);
+check(
+  "architecture: server evidence search resolves domains/templates from the registry, no hard-coded airasia gate",
+  logicSource.includes('from "../src/domain/connection-policies.mjs"') && logicSource.includes("resolveConnectionPolicy") && logicSource.includes("renderQueryTemplate") && !logicSource.includes('include_domains: ["airasia.com"]'),
+);
+check(
+  "architecture: screening/ranking rules and the lab resolve parameters from the registry",
+  rulesSource.includes('from "./connection-policies.mjs"') && labSource.includes('from "../domain/connection-policies.mjs"') && !rulesSource.includes("MINIMUM_SCREENING_MINUTES"),
+);
+
+// --- 6. Numeric unit tests (rubric boundaries, screening/ranking, whitelist) --
+const unitTests = runNode("scripts/run-tests.mjs", []);
+check("unit tests: rubric / itinerary rules / whitelist / policy registry suites pass", unitTests.status === 0, (unitTests.stdout + unitTests.stderr).trim().slice(-400));
 
 // --- Report -----------------------------------------------------------------
 for (const name of passes) console.log(`  ok  ${name}`);

@@ -98,6 +98,9 @@ export interface ConnectionResearchMeta {
   attempts?: number;
   /** The reformulated official query used by round 2, when it ran. */
   retryQuery?: string;
+  /** Id of the registered connection policy entry that drove the evidence
+   * thresholds, or null when the route took the explicit no-policy path. */
+  policyId?: string | null;
 }
 
 export interface ConnectionContractInput {

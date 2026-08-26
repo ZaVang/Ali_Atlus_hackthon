@@ -10,7 +10,8 @@ export interface DemoSession {
   providers: Providers;
   view: DemoView;
   switchView: (view: DemoView) => void;
-  /** Set once any flight search had to fall back to labelled fixtures. */
+  /** Set once any flight search failed, so the shell can disclose that no
+   * recommendation is generated (there is no per-route fixture fallback). */
   fallbackBanner: boolean;
   notifySearchFallback: () => void;
 }

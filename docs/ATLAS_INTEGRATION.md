@@ -55,7 +55,7 @@ The provider should return explicit source metadata: `mock`, `atlas-sandbox`, or
 
 - Seattle track: the MVP story uses deterministic fixtures because the Sandbox has no North America inventory. Fixture data is always labelled and never presented as Atlas data.
 - Live track: a PVG→SIN search runs against the real Sandbox to demonstrate live offers and identifier handling.
-- Provider selection follows `VITE_FLIGHT_PROVIDER`; even in sandbox mode, a route without inventory falls back to labelled fixtures.
+- Provider selection follows `VITE_FLIGHT_PROVIDER`. In sandbox mode there is no per-route fixture fallback: when a search is unavailable the app surfaces no recommendation rather than substituting fixtures for live results. The deterministic mock provider remains available by selecting `VITE_FLIGHT_PROVIDER=mock`.
 
 ## Data provenance in the UI
 
@@ -73,9 +73,13 @@ Each recommendation must label its evidence:
 When credentials are missing or Sandbox calls fail:
 
 1. Do not render invented live data as Atlas data.
-2. Fall back to the deterministic mock scenario.
-3. Display that the demo is running with fixture data.
-4. Keep the risk and recovery workflow usable for the demo.
+2. Keep the Sandbox provider in an honest unavailable state; do not silently substitute fixtures.
+3. Display that no recommendation was generated from provider data.
+4. For a credential-free demo, select `VITE_FLIGHT_PROVIDER=mock` explicitly and display the fixture provenance.
+
+## Server-side hosting
+
+The Atlas proxy (`POST /api/atlas/<endpoint>.do`), together with the agent chat proxy and the connection-research tool loop, lives in a shared server module (`server/logic.mjs`). The Vite dev server mounts these handlers as middlewares, and the same module runs as a standalone Node HTTP service via `npm run server` (`server/index.mjs`, port 8787 or `PORT`), so dev and deployed behaviour cannot drift. Credentials are loaded from `.env` / `.env.local` / process environment on the server only. This hosting change does not extend the integration scope: booking, payment and servicing (refund/cancel/change) remain out of scope.
 
 ## Secrets
 

@@ -38,7 +38,7 @@ function Shell() {
 
       {fallbackBanner && (
         <div className="banner banner-warning" role="status">
-          Flight search unavailable — running on labelled fixtures.
+          Flight search unavailable — no recommendation is generated until live provider data is available.
         </div>
       )}
 

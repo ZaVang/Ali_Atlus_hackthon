@@ -15,7 +15,7 @@ The entire project — reading the hackathon brief, shaping the narrative, resea
 | 08-17 | **Quest mode** | Read the project docs before touching anything; derived goals backwards from "what must the 3-minute demo show"; completed the Atlas integration study (ATRIP REST API vs Skill CLI); configured Sandbox credentials and smoke-tested them; I wrote my real Seattle missed-connection story into the plan as the origin of every requirement |
 | 08-19 | Agent mode | Implemented the first demonstrable demo from the plan; I played the "judge who knows nothing" while Qoder explained each panel screen by screen; narrative convergence (OTP insight, risk-pricing exploration); designed and injected the LLM layer (`AgentProvider` as a peer of the four existing providers, credentials injected via server-side proxy); added bilingual READMEs |
 | 08-24 | **Quest mode** | Second pivot: from "connection integrity" narrative toward "risk pricing"; the Quest produced a plan, then executed it strictly (editing the plan file was explicitly forbidden); stage results delivered as Canvas visual reports; wrote the judge walkthrough script; pasted an external audit (62/100) into the session and reconciled it point by point |
-| 08-25 | Agent mode + **Subagent** | Judge-perspective self-scoring → three high-leverage improvements; had Qoder generate the automated acceptance gate `npm run verify` (33 assertions); dispatched a CodeReview subagent for an adversarial audit (56/100, 13 deductions), then fixed them point by point and re-verified fully green |
+| 08-25 | Agent mode + **Subagent** | Judge-perspective self-scoring → three high-leverage improvements; had Qoder generate the automated acceptance gate `npm run verify` (44 assertions); dispatched a CodeReview subagent for an adversarial audit (56/100, 13 deductions), then fixed them point by point and re-verified fully green |
 
 ## Qoder capabilities used, with evidence
 
@@ -23,7 +23,7 @@ The entire project — reading the hackathon brief, shaping the narrative, resea
 - **Contract-first**: the product contract `docs/CONNECTION_INTEGRITY_DEMO.md` was drafted and revised inside sessions; UI copy, provider boundaries and acceptance checks are all derived from it.
 - **Canvas reports**: Quest phases delivered 4 Canvas visual reports (narrative research, agent-injection design, weather extension, demo completion).
 - **Repo Wiki**: a Qoder-generated wiki was used to build global understanding quickly (the pre-pivot edition is superseded, see `.gitignore`).
-- **Browser verification**: 88 screenshots verifying every panel's wording and behaviour (see `verify-screenshots/`), later upgraded to "I watch it myself and give feedback".
+- **Browser verification**: 88 screenshots verifying every panel's wording and behaviour during the pre-pivot exploration, archived as legacy exploration evidence under `verify-screenshots/legacy/`; all 11 current-product screenshots are captured under `verify-screenshots/current/`, including the live end-to-end research run. Later upgraded to "I watch it myself and give feedback".
 - **Memory system**: hard-won lessons were persisted as long-term memories — e.g. "async provider results writing shared React state need a generation guard against stale overwrites", "Vite middleware reading non-VITE_ variables needs explicit loadEnv", "LLM role boundary: speak and judge, never execute" — and were directly reused in later sessions.
 - **Subagent adversarial audit**: before the deadline an independent CodeReview subagent audited the whole repository as a hostile judge; all 13 deductions were reconciled, 11 fixed, and the lessons were encoded into gate regexes to prevent regressions.
 
@@ -52,8 +52,25 @@ The hackathon theme is Agentic AI. The way we used Qoder is itself agentic: **pl
 |---|---|
 | 4 session records (2 Quests: task-2f5, task-e19) | Qoder conversation history |
 | 4 Canvas stage reports (narrative research / agent injection / weather extension / demo completion) | Qoder Canvas |
-| 88 browser-verification screenshots | `verify-screenshots/` |
-| Acceptance gate with 33 assertions | `scripts/verify-acceptance.mjs` (`npm run verify`) |
+| 88 browser-verification screenshots (legacy exploration evidence, pre-pivot product) | `verify-screenshots/legacy/` |
+| 11 current product screenshots (all in place) | `verify-screenshots/current/` (list below) |
+| Acceptance gate with 60 assertions (includes numeric unit tests for the rubric boundaries, screening/ranking rules, the policy registry and the brief whitelist) | `scripts/verify-acceptance.mjs` (`npm run verify`) |
 | Product contract | `docs/CONNECTION_INTEGRITY_DEMO.md` |
 | Judge walkthrough script | `docs/DEMO_WALKTHROUGH.zh-CN.md` |
 | Archived exploration (pre-pivot docs) | `docs/legacy/` |
+
+### Current product screenshots (`verify-screenshots/current/`)
+
+| File | What it shows | Data path |
+|---|---|---|
+| `current-1-header.png` | Top bar with view tabs and the Flight/Agent provider badges | Flight = atlas-sandbox live search |
+| `current-2-itinerary-input.png` | `Try an itinerary` search form against the PVG → KUL → SIN case | Flight = atlas-sandbox live search |
+| `current-3-assessment.png` | Agent recommendation panel: time fit, ticket protection, chosen option | Flight = atlas-sandbox live search · Agent = mock |
+| `current-4-live-research-fallback.png` | Complete mock-agent conclusion panel (an Agent: mock path example) | Flight = atlas-sandbox live search · Agent = mock |
+| `current-4-live-research.png` | `Ask agent` live evidence-chain research result: tiered sources (OFFICIAL×1 + COMMUNITY×2), search-round telemetry (1 round, ~27 s) and the structured verdict | Flight = atlas-sandbox live search · Agent = deepseek live |
+| `current-5-airline-side.png` | Airline watch side: simulated inbound-delay event and the consent-gated intervention | Flight = atlas-sandbox live search · Agent = mock |
+| `current-6-audit-trail.png` | Persisted audit trail: consent and proposal events with timestamps and source labels | Flight = atlas-sandbox live search · Agent = mock |
+| `current-7-honest-banner.png` | Honest search-failure banner: no recommendation is generated without live provider data | Flight = atlas-sandbox live search |
+| `current-8-policy-pill.png` | Itinerary Lab Policy pill (AirAsia Fly-Thru · KLIA Terminal 2 · 60 min minimum + 90 min buffer · source link) with 68 returned pairs and combination cards | Flight = atlas-sandbox live search · policy resolved from the `connection-policies` registry |
+| `current-9-scenario-replay.png` | Airline view Scenario replay timeline (four steps, three done + one active) with the insufficient verdict, the intervention proposal and audit entries sourced "Scenario replay · demo simulation" | Deterministic demo fixture replay (fully simulated) |
+| `current-10-hosted-demo.png` | Real first screen of the Vercel-hosted mock build (Flight: mock / Agent: mock badges, hero copy, Policy pill) | Mock static hosted build (no credentials) |

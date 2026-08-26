@@ -87,6 +87,59 @@ function isConnectionChoicePriority(value: unknown): value is ConnectionChoicePr
   return value === "lowest-cost" || value === "earliest-arrival" || value === "largest-buffer";
 }
 
+/**
+ * Field-by-field whitelist for a parsed connection brief. The exact same
+ * check guards live agent responses and briefs re-read from browser cache,
+ * so a tampered or malformed value can never reach the verdict rendering:
+ * every enum is closed, explanation fields must be strings, and any carried
+ * research source must match the source shape.
+ */
+export function isWhitelistedConnectionBrief(parsed: unknown): parsed is ConnectionContractBrief {
+  const boundedText = (value: unknown, maxLength: number) => typeof value === "string" && value.length > 0 && value.length <= maxLength;
+  const boundedStringArray = (value: unknown, maxItems: number, maxItemLength: number) => Array.isArray(value)
+    && value.length <= maxItems
+    && value.every((item) => boundedText(item, maxItemLength));
+  const safeResearchUrl = (value: unknown) => {
+    if (typeof value !== "string" || value.length > 2_000) return false;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  };
+  if (typeof parsed !== "object" || parsed === null) return false;
+  const brief = parsed as {
+    connectionFit?: unknown;
+    protectionStatus?: unknown;
+    recommendedOption?: unknown;
+    recommendationSummary?: unknown;
+    assessmentConfidence?: unknown;
+    rationale?: unknown;
+    keyFactors?: unknown;
+    limitations?: unknown;
+    nextAction?: unknown;
+    sources?: unknown;
+  };
+  if (
+    (brief.connectionFit !== "comfortable" && brief.connectionFit !== "tight" && brief.connectionFit !== "insufficient")
+    || (brief.protectionStatus !== "confirmed" && brief.protectionStatus !== "not-confirmed")
+    || (brief.recommendedOption !== "selected" && brief.recommendedOption !== "alternative")
+    || (brief.assessmentConfidence !== "low" && brief.assessmentConfidence !== "medium" && brief.assessmentConfidence !== "high")
+  ) return false;
+  if (!boundedText(brief.recommendationSummary, 4_000) || !boundedText(brief.rationale, 8_000) || !boundedText(brief.nextAction, 4_000)) return false;
+  if (!boundedStringArray(brief.keyFactors, 8, 1_000) || !boundedStringArray(brief.limitations, 8, 1_000)) return false;
+  if (brief.sources !== undefined) {
+    if (!Array.isArray(brief.sources) || brief.sources.length > 8) return false;
+    for (const item of brief.sources) {
+      if (typeof item !== "object" || item === null) return false;
+      const source = item as { tier?: unknown; title?: unknown; url?: unknown; summary?: unknown; disclosed?: unknown };
+      if ((source.tier !== "official" && source.tier !== "community") || !boundedText(source.title, 300) || !safeResearchUrl(source.url) || !boundedText(source.summary, 2_000) || (source.disclosed !== undefined && typeof source.disclosed !== "boolean")) return false;
+    }
+  }
+  return true;
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
@@ -158,23 +211,11 @@ export class BailianAgentProvider implements AgentProvider {
         const message = typeof payload === "object" && payload !== null && typeof (payload as { msg?: unknown }).msg === "string" ? (payload as { msg: string }).msg : "unavailable";
         throw new Error(`Connection research returned HTTP ${res.status}: ${message}`);
       }
-      const body = payload as { model?: unknown; content?: unknown; sources?: unknown; attempts?: unknown; retryQuery?: unknown };
+      const body = payload as { model?: unknown; content?: unknown; sources?: unknown; attempts?: unknown; retryQuery?: unknown; policyId?: unknown };
       if (typeof body.content !== "string" || body.content.length === 0) throw new Error("Connection research returned no content");
       const parsed: unknown = JSON.parse(body.content);
-      if (typeof parsed !== "object" || parsed === null) throw new Error("Connection research JSON was not an object");
-      const { connectionFit, protectionStatus, recommendedOption, recommendationSummary, assessmentConfidence, rationale, keyFactors, limitations, nextAction } = parsed as {
-        connectionFit?: unknown;
-        protectionStatus?: unknown;
-        recommendedOption?: unknown;
-        recommendationSummary?: unknown;
-        assessmentConfidence?: unknown;
-        rationale?: unknown;
-        keyFactors?: unknown;
-        limitations?: unknown;
-        nextAction?: unknown;
-      };
-      if ((connectionFit !== "comfortable" && connectionFit !== "tight" && connectionFit !== "insufficient") || (protectionStatus !== "confirmed" && protectionStatus !== "not-confirmed") || (recommendedOption !== "selected" && recommendedOption !== "alternative") || (assessmentConfidence !== "low" && assessmentConfidence !== "medium" && assessmentConfidence !== "high")) throw new Error("Agent returned invalid connection assessment");
-      if (typeof recommendationSummary !== "string" || typeof rationale !== "string" || typeof nextAction !== "string") throw new Error("Agent response missing connection explanation");
+      if (!isWhitelistedConnectionBrief(parsed)) throw new Error("Agent returned invalid connection assessment");
+      const { connectionFit, protectionStatus, recommendedOption, recommendationSummary, assessmentConfidence, rationale, keyFactors, limitations, nextAction } = parsed;
       const sources: ConnectionResearchSource[] = Array.isArray(body.sources)
         ? body.sources.flatMap((item): ConnectionResearchSource[] => {
             if (typeof item !== "object" || item === null) return [];
@@ -206,6 +247,9 @@ export class BailianAgentProvider implements AgentProvider {
           // round ran, the reformulated query it used.
           attempts: body.attempts === 1 || body.attempts === 2 ? body.attempts : 1,
           retryQuery: typeof body.retryQuery === "string" && body.retryQuery.length <= 200 ? body.retryQuery : undefined,
+          // Registry entry that drove the evidence thresholds; null marks the
+          // explicit no-policy path. Ids are short kebab-case identifiers.
+          policyId: typeof body.policyId === "string" && /^[a-z0-9-]{1,64}$/.test(body.policyId) ? body.policyId : null,
         },
       };
     } finally {
