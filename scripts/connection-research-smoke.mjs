@@ -95,13 +95,12 @@ try {
       brief
       && (fit === "comfortable" || fit === "tight" || fit === "insufficient")
       && (brief.protectionStatus === "confirmed" || brief.protectionStatus === "not-confirmed")
-      && (brief.recommendedOption === "selected" || brief.recommendedOption === "alternative")
       && typeof brief.recommendationSummary === "string"
       && typeof brief.rationale === "string";
     console.log(`model=${body.model}  attempts=${body.attempts}  sources=${Array.isArray(body.sources) ? body.sources.length : 0} (official: ${officialCount})`);
     console.log(
       validBrief && officialCount > 0
-        ? `OK: structured brief received (connectionFit=${fit}, recommendedOption=${brief.recommendedOption})`
+        ? `OK: structured evidence brief received (connectionFit=${fit}; deterministic comparison owns the candidate)`
         : "FAIL: 200 response but the brief failed the whitelist shape check",
     );
     if (!(validBrief && officialCount > 0)) process.exitCode = 1;

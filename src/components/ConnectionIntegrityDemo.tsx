@@ -4,6 +4,8 @@ import { kulConnectionCase } from "../data/connection-integrity";
 import { useDemoSession } from "../state/session";
 import { isWhitelistedConnectionBrief } from "../providers/bailian-agent";
 import { resolveConnectionPolicy } from "../domain/connection-policies.mjs";
+import { createConnectionResilienceReceipt, formatReceiptMoney, type ConnectionResilienceReceipt } from "../domain/connection-resilience";
+import { readCurrentResearchCache, writeCurrentResearchCache } from "../domain/connection-research-cache";
 import { ProvenancePill, formatDuration, formatMoney } from "./shared";
 import AgentTrace from "./AgentTrace";
 import {
@@ -20,27 +22,8 @@ type CandidateKey = "shortest" | "buffered";
 type Candidate = typeof kulConnectionCase.shortest | typeof kulConnectionCase.buffered;
 type AgentContractBrief = ConnectionContractBrief & { model: string };
 
-const CONNECTION_RESEARCH_CACHE_PREFIX = "connection-integrity:research:v5:";
-const CONNECTION_RESEARCH_CACHE_TTL_MS = 30 * 60 * 1_000;
-
-interface CachedResearch {
-  expiresAt: number;
-  brief: AgentContractBrief;
-}
-
 function readCachedResearch(key: string): AgentContractBrief | null {
-  try {
-    const raw = window.localStorage.getItem(`${CONNECTION_RESEARCH_CACHE_PREFIX}${key}`);
-    if (!raw) return null;
-    const cached = JSON.parse(raw) as Partial<CachedResearch>;
-    if (typeof cached.expiresAt !== "number" || cached.expiresAt <= Date.now() || !cached.brief || !isValidBriefShape(cached.brief)) {
-      window.localStorage.removeItem(`${CONNECTION_RESEARCH_CACHE_PREFIX}${key}`);
-      return null;
-    }
-    return cached.brief;
-  } catch {
-    return null;
-  }
+  return readCurrentResearchCache(window.localStorage, key, Date.now(), isValidBriefShape);
 }
 
 // Cached briefs come from untrusted browser storage: re-apply the exact same
@@ -150,8 +133,7 @@ const DEMO_POLICY = resolveConnectionPolicy({
 const SCENARIO_REASSESSMENT: AgentContractBrief = {
   connectionFit: "insufficient",
   protectionStatus: "not-confirmed",
-  recommendedOption: "alternative",
-  recommendationSummary: "Choose the longer-buffer alternative: the selected connection no longer meets the published minimum.",
+  recommendationSummary: "The deterministic receipt compares the named candidates under the simulated event.",
   assessmentConfidence: "high",
   rationale: `The reported delay leaves ${kulConnectionCase.shortest.connectionMinutes - AIRLINE_SCENARIO.delayMinutes} minutes, below the ${kulConnectionCase.flyThruMinimumMinutes}-minute Fly-Thru connection rule at ${kulConnectionCase.connectionAirport}. This is a time-fit failure, not an estimate of missed-connection probability.`,
   keyFactors: ["Remaining connection time is below the published Fly-Thru minimum", "Inbound operational delay"],
@@ -187,8 +169,7 @@ function scenarioReassessmentForCandidate(candidateKey: CandidateKey): AgentCont
   return {
     connectionFit: "tight",
     protectionStatus: "not-confirmed",
-    recommendedOption: "selected",
-    recommendationSummary: "Keep the selected longer-buffer itinerary: after the simulated delay it remains above the published minimum, but extra buffer would help.",
+    recommendationSummary: "The deterministic receipt records that the named longer-buffer itinerary stays above the published floor in this replay.",
     assessmentConfidence: "high",
     rationale: `The reported delay leaves ${remaining} minutes, above the ${publishedMinimum}-minute Fly-Thru connection rule at KUL but below the ${comfortTarget}-minute planning target. This is a time-fit assessment, not an estimate of missed-connection probability.`,
     keyFactors: [`${remaining} planned minutes compared with the ${comfortTarget}-minute comfort target`, "Inbound operational delay"],
@@ -200,8 +181,7 @@ function scenarioReassessmentForCandidate(candidateKey: CandidateKey): AgentCont
 
 function writeCachedResearch(key: string, brief: AgentContractBrief) {
   try {
-    const cached: CachedResearch = { expiresAt: Date.now() + CONNECTION_RESEARCH_CACHE_TTL_MS, brief };
-    window.localStorage.setItem(`${CONNECTION_RESEARCH_CACHE_PREFIX}${key}`, JSON.stringify(cached));
+    writeCurrentResearchCache(window.localStorage, key, brief, Date.now());
   } catch {
     // Browser storage can be unavailable (for example, private mode). The
     // in-memory cache below still makes repeat clicks within this session fast.
@@ -294,18 +274,22 @@ function CandidateCard({ candidate, selected, onChoose, label, disabled }: { can
   );
 }
 
-function ContractVerdict({ brief, fallback, delayMinutes, scheduledConnectionMinutes, researchError, selectedLabel, alternativeLabel }: { brief: AgentContractBrief | null; fallback: ConnectionFit; delayMinutes: number; scheduledConnectionMinutes: number; researchError: boolean; selectedLabel: string; alternativeLabel: string }) {
-  const fit = brief?.connectionFit ?? fallback;
-  const copy = FIT_COPY[fit];
-  const remaining = scheduledConnectionMinutes - delayMinutes;
+function ResilienceReceipt({ receipt, currency }: { receipt: ConnectionResilienceReceipt; currency: string }) {
+  return <section className="resilience-receipt" aria-label="Connection Resilience Receipt"><h3>Connection Resilience Receipt</h3><p><strong>{receipt.recommendedFlights.join(" + ")}</strong> is the deterministic recommendation: {formatReceiptMoney(receipt.extraFareCents, currency)} extra fare buys +{receipt.addedBufferMinutes} min.</p><p>In the deterministic +{receipt.delayMinutes} min replay/counterfactual, it leaves <strong>{receipt.recommendedRemainingMinutes} min</strong>; <strong>{receipt.counterfactualFlights.join(" + ")}</strong> leaves <strong>{receipt.counterfactualRemainingMinutes} min</strong>, against the published <strong>{receipt.publishedFloorMinutes} min</strong> floor.</p><p className="small muted">This is a deterministic replay/counterfactual only: not a probability, live flight status, protected ticket, real avoided misconnect, or completed recovery.</p></section>;
+}
+
+function DeterministicResult({ receipt, currency }: { receipt: ConnectionResilienceReceipt; currency: string }) {
+  return <section className="deterministic-result card" aria-label="Deterministic recommendation"><div className="card-title-row"><h2>Deterministic recommendation</h2><ProvenancePill label="Deterministic comparison" /></div><p><strong>{receipt.recommendedFlights.join(" + ")}</strong> is selected from the named schedule, fare and policy inputs. The Agent does not choose this candidate.</p><ResilienceReceipt receipt={receipt} currency={currency} /></section>;
+}
+
+function ContractVerdict({ brief, researchError, baseline }: { brief: AgentContractBrief | null; researchError: boolean; baseline: Candidate }) {
   const usesDeepSeek = brief?.model.toLowerCase().includes("deepseek") ?? false;
   return (
-    <section className={`contract-verdict ${copy.className}`}>
-      <div className="card-title-row"><h2>{brief ? "Agent recommendation" : "Research ready"}</h2>{DEMO_POLICY && <ProvenancePill label={`Policy: ${DEMO_POLICY.label} · ${DEMO_POLICY.publishedMinimumMinutes} min minimum + ${DEMO_POLICY.planningBufferMinutes} min buffer`} />}{brief && <><span className={`badge ${copy.badgeClassName}`}>{copy.title}</span><ProvenancePill label={brief.protectionStatus === "confirmed" ? "Ticket protection confirmed" : "Ticket protection not confirmed"} /><ProvenancePill label={`Assessment confidence: ${brief.assessmentConfidence}`} /></>}</div>
-      {!brief && !researchError && <p>Ask the agent to compare both offers using public KUL transfer evidence. It will answer time fit, ticket protection, and which offer it recommends separately.</p>}
-      {!brief && researchError && <p>The live research request did not finish. No agent judgment has been shown; retry the check to obtain a source-backed assessment.</p>}
-      {delayMinutes > 0 && <p className="small">Event input leaves {formatDuration(remaining)} against the published {formatDuration(kulConnectionCase.flyThruMinimumMinutes)} minimum.</p>}
-      {brief && <div className="agent-brief"><strong>Choose {brief.recommendedOption === "selected" ? selectedLabel : alternativeLabel}</strong><p className="agent-recommendation">{brief.recommendationSummary}</p><p>{brief.rationale}</p>{brief.keyFactors.length > 0 && <p className="small"><strong>Why:</strong> {brief.keyFactors.join(" · ")}</p>}<p className="small"><strong>Before purchase:</strong> {brief.nextAction}</p>{brief.limitations.length > 0 && <p className="small"><strong>What remains unknown:</strong> {brief.limitations.join(" · ")}</p>}{brief.sources && brief.sources.length > 0 && <div className="agent-research"><strong>Agent research</strong>{brief.sources.map((source) => <a key={`${source.tier}-${source.url}`} href={source.url} target="_blank" rel="noreferrer"><span>{source.tier === "official" ? (source.disclosed ? "Official · disclosed fallback input" : "Official") : "Community"}</span><span className="agent-source-copy">{source.title}<small>{source.summary}</small></span></a>)}</div>}<details className="agent-run-details"><summary>How this judgment was made</summary><dl><div><dt>Time-fit rubric</dt><dd>{DEMO_POLICY ? `${DEMO_POLICY.publishedMinimumMinutes} min published minimum + ${DEMO_POLICY.planningBufferMinutes} min planning buffer (${DEMO_POLICY.label})` : "No configured connection policy for this route; no published minimum or buffer applied"}</dd></div><div><dt>Model</dt><dd>{brief.model}</dd></div><div><dt>Workflow</dt><dd>{brief.researchMeta ? `Tavily evidence search → ${usesDeepSeek ? "DeepSeek" : "provider"} assessment` : "Demo fixture (no live call)"}</dd></div>{brief.researchMeta && <><div><dt>Thinking</dt><dd>{usesDeepSeek ? "Enabled · medium effort" : "Provider-configured mode"}</dd></div><div><dt>Search sources</dt><dd>{brief.researchMeta.sourceCount}</dd></div><div><dt>Search rounds</dt><dd>{brief.researchMeta.attempts === 2 ? "2 · round 2 reformulated the official query after round 1 found no relevant official source" : "1"}</dd></div>{brief.researchMeta.attempts === 2 && brief.researchMeta.retryQuery && <div><dt>Round-2 query</dt><dd>{brief.researchMeta.retryQuery}</dd></div>}{typeof brief.researchMeta.policyId === "string" && <div><dt>Policy entry</dt><dd>{brief.researchMeta.policyId}</dd></div>}{brief.researchMeta.policyId === null && <div><dt>Policy entry</dt><dd>None configured for this route</dd></div>}<div><dt>Response time</dt><dd>{formatResearchDuration(brief.researchMeta.durationMs)}</dd></div><div><dt>Result origin</dt><dd>{brief.researchMeta.fromCache ? "This browser's 30-minute cache" : "Live agent run"}</dd></div></>} </dl><p className="small">The rubric is a transparent planning heuristic, not a historical missed-connection probability. No API key, raw prompt, or private chain-of-thought is stored or displayed.</p></details><ProvenancePill label={brief.model === "mock-agent" || brief.model === "demo agent fixture" ? "Demo agent fixture" : `Agent-generated · ${brief.model}`} /></div>}
+    <section className="agent-evidence-panel card">
+      <div className="card-title-row"><h2>Agent evidence</h2><ProvenancePill label="Evidence and explanation only" /></div>
+      {!brief && !researchError && <p>Ask the Agent to check and explain public KUL transfer evidence for the named baseline. The deterministic comparison already chooses the final candidate.</p>}
+      {!brief && researchError && <p>The evidence check did not finish. No Agent assessment is shown; retry to obtain a source-backed baseline assessment. The deterministic choice is unchanged.</p>}
+      {brief && <details className="agent-evidence"><summary>Agent evidence for {baseline.flights.join(" + ")} · scheduled {baseline.connectionMinutes} min</summary><div className="agent-brief"><div className="card-title-row"><span className={`badge ${FIT_COPY[brief.connectionFit].badgeClassName}`}>{FIT_COPY[brief.connectionFit].title}</span><ProvenancePill label={brief.protectionStatus === "confirmed" ? "Ticket protection confirmed" : "Ticket protection not confirmed"} /><ProvenancePill label={`Assessment confidence: ${brief.assessmentConfidence}`} /></div><p className="agent-recommendation">{brief.recommendationSummary}</p><p>{brief.rationale}</p><p className="small"><strong>Agent role:</strong> checks and explains evidence for this baseline only; it does not rank or choose the final candidate.</p>{brief.keyFactors.length > 0 && <p className="small"><strong>Why:</strong> {brief.keyFactors.join(" · ")}</p>}<p className="small"><strong>Next action:</strong> {brief.nextAction}</p>{brief.limitations.length > 0 && <p className="small"><strong>What remains unknown:</strong> {brief.limitations.join(" · ")}</p>}{brief.sources && brief.sources.length > 0 && <div className="agent-research"><strong>Agent research</strong>{brief.sources.map((source) => <a key={`${source.tier}-${source.url}`} href={source.url} target="_blank" rel="noreferrer"><span>{source.tier === "official" ? (source.disclosed ? "Official · disclosed fallback input" : "Official") : "Community"}</span><span className="agent-source-copy">{source.title}<small>{source.summary}</small></span></a>)}</div>}<details className="agent-run-details"><summary>How this judgment was made</summary><dl><div><dt>Time-fit rubric</dt><dd>{DEMO_POLICY ? `${DEMO_POLICY.publishedMinimumMinutes} min published minimum + ${DEMO_POLICY.planningBufferMinutes} min planning buffer (${DEMO_POLICY.label})` : "No configured connection policy for this route; no published minimum or buffer applied"}</dd></div><div><dt>Model</dt><dd>{brief.model}</dd></div><div><dt>Workflow</dt><dd>{brief.researchMeta ? `Tavily evidence search → ${usesDeepSeek ? "DeepSeek" : "provider"} assessment` : "Demo fixture (no live call)"}</dd></div>{brief.researchMeta && <><div><dt>Thinking</dt><dd>{usesDeepSeek ? "Enabled · medium effort" : "Provider-configured mode"}</dd></div><div><dt>Search sources</dt><dd>{brief.researchMeta.sourceCount}</dd></div><div><dt>Search rounds</dt><dd>{brief.researchMeta.attempts === 2 ? "2 · round 2 reformulated the official query after round 1 found no relevant official source" : "1"}</dd></div>{brief.researchMeta.attempts === 2 && brief.researchMeta.retryQuery && <div><dt>Round-2 query</dt><dd>{brief.researchMeta.retryQuery}</dd></div>}{typeof brief.researchMeta.policyId === "string" && <div><dt>Policy entry</dt><dd>{brief.researchMeta.policyId}</dd></div>}{brief.researchMeta.policyId === null && <div><dt>Policy entry</dt><dd>None configured for this route</dd></div>}<div><dt>Response time</dt><dd>{formatResearchDuration(brief.researchMeta.durationMs)}</dd></div><div><dt>Result origin</dt><dd>{brief.researchMeta.fromCache ? "This browser's 30-minute cache" : "Live agent run"}</dd></div></>} </dl><p className="small">The rubric is a transparent planning heuristic, not a historical missed-connection probability. No API key, raw prompt, or private chain-of-thought is stored or displayed.</p></details><ProvenancePill label={brief.model === "mock-agent" || brief.model === "demo agent fixture" ? "Demo agent fixture" : `Agent-generated · ${brief.model}`} /></div></details>}
     </section>
   );
 }
@@ -347,6 +331,10 @@ export default function ConnectionIntegrityDemo() {
   const alternativeCandidate = kulConnectionCase[alternativeCandidateKey];
   const activeScenario = scenarioForCandidate(activeCandidateKey);
   const activeScenarioReassessment = scenarioReassessmentForCandidate(activeCandidateKey);
+  const receipt = createConnectionResilienceReceipt({
+    shortest: { key: "shortest", ...kulConnectionCase.shortest },
+    buffered: { key: "buffered", ...kulConnectionCase.buffered },
+  }, kulConnectionCase.connectionAirport, AIRLINE_SCENARIO.delayMinutes);
   const fallback = fallbackFit(delayMinutes, activeCandidate.connectionMinutes);
 
   function beginTraceRun(): number {
@@ -396,7 +384,7 @@ export default function ConnectionIntegrityDemo() {
       stage: "recommendation",
       status: "active",
       source: providerSource,
-      summary: "Waiting for the whitelist-validated brief; recommendation text does not grant booking authority.",
+      summary: "Waiting for the whitelist-validated Agent evidence brief; deterministic comparison already owns the candidate choice.",
     });
     updateTrace(runId, {
       stage: "consent-gate",
@@ -436,7 +424,7 @@ export default function ConnectionIntegrityDemo() {
       stage: "recommendation",
       status: "complete",
       source: recommendationSource,
-      summary: `Whitelist-validated brief recommends ${result.recommendedOption === "selected" ? "the selected" : "the longer-buffer alternative"} option. ${telemetrySummary} Ranking, execution, and booking authority remain deterministic and consent-gated.`,
+      summary: `Whitelist-validated Agent evidence/explanation is ready. ${telemetrySummary} Deterministic comparison owns ranking, the final candidate, execution, and consent.`,
     });
     updateTrace(runId, {
       stage: "consent-gate",
@@ -486,7 +474,7 @@ export default function ConnectionIntegrityDemo() {
 
   function acceptRecommendation() {
     if (!brief) return;
-    const chosenKey = brief.recommendedOption === "selected" ? activeCandidateKey : alternativeCandidateKey;
+    const chosenKey = receipt.recommendedKey;
     recordAudit({ side: "traveller", event: "traveller-consent", detail: `Traveller confirmed ${kulConnectionCase[chosenKey].flights.join(" + ")} (PVG → KUL → SIN) for airline watch`, source: "Traveller UI · demo consent" });
     updateTrace(traceRun.current, {
       stage: "consent-gate",
@@ -556,15 +544,13 @@ export default function ConnectionIntegrityDemo() {
       stage: "recommendation",
       status: "complete",
       source: "mock",
-      summary: activeCandidateKey === "shortest"
-        ? "Demo agent fixture recommends the longer-buffer alternative; ranking and intervention execution remain deterministic."
-        : "Demo agent fixture keeps the selected longer-buffer itinerary; no extra recovery flight is invented.",
+      summary: "Demo agent fixture supplies explanation only; deterministic comparison owns the named candidate and intervention boundary.",
     });
     updateTrace(traceRunId, {
       stage: "consent-gate",
       status: "pending",
       source: "pending",
-      summary: "The fixture recommendation is not an action; an offer must be prepared and then explicitly accepted.",
+      summary: "Fixture evidence is not an action; the deterministic result still requires explicit consent before any proposal.",
     });
     if (!(await scenarioPause(runId, scenario.stepPauseMs))) return;
 
@@ -599,7 +585,7 @@ export default function ConnectionIntegrityDemo() {
     seedConnectionTrace(
       traceRunId,
       traceSourceForProvider(providers.agent.source),
-      `Traveller selected the ${activeCandidateKey === "shortest" ? "cheapest" : "more-buffered"} itinerary; the Agent compares this explicit choice with the alternative.`,
+      `The Agent checks transfer evidence for the ${activeCandidateKey === "shortest" ? "cheapest" : "more-buffered"} baseline; deterministic comparison owns the final candidate.`,
     );
     const cached = researchCache.current.get(researchKey) ?? readCachedResearch(researchKey);
     if (cached) {
@@ -656,13 +642,13 @@ export default function ConnectionIntegrityDemo() {
         stage: "recommendation",
         status: "unavailable",
         source: "unavailable",
-        summary: "No recommendation was generated because the evidence-backed assessment is unavailable.",
+        summary: "Agent evidence is unavailable; no evidence-backed consent path is opened. The deterministic comparison remains a disclosed result, not an action.",
       });
       updateTrace(traceRunId, {
         stage: "consent-gate",
         status: "unavailable",
         source: "unavailable",
-        summary: "Consent cannot open without a completed recommendation.",
+        summary: "Consent cannot open without a completed evidence check and explicit traveller review.",
       });
       return null;
     } finally {
@@ -680,8 +666,6 @@ export default function ConnectionIntegrityDemo() {
         <div className="evidence-row"><ProvenancePill label="Snapshot · ATRIP offer observed" /><ProvenancePill label="Live · provider call when configured" /><ProvenancePill label="Mock · zero-credential replay" /><ProvenancePill label="Unavailable · no claim shown" /></div>
       </section>
 
-      <AgentTrace state={traceState} />
-
       <div className="integrity-tabs" role="tablist" aria-label="Connection Integrity views">
         <button type="button" role="tab" aria-selected={side === "traveller"} className={side === "traveller" ? "active" : ""} onClick={() => switchSide("traveller")}>Traveller: choose before booking</button>
         <button type="button" role="tab" aria-selected={side === "airline"} className={side === "airline" ? "active" : ""} onClick={() => switchSide("airline")}>Airline: intervene after an event</button>
@@ -696,10 +680,11 @@ export default function ConnectionIntegrityDemo() {
               <CandidateCard label="Cheapest" candidate={kulConnectionCase.shortest} selected={candidate === "shortest"} disabled={loading} onChoose={() => { beginTraceRun(); setCandidate("shortest"); setBrief(null); setResearchError(false); }} />
               <CandidateCard label="More buffer" candidate={kulConnectionCase.buffered} selected={candidate === "buffered"} disabled={loading} onChoose={() => { beginTraceRun(); setCandidate("buffered"); setBrief(null); setResearchError(false); }} />
             </div>
-            <div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => void askAgent()} disabled={loading}>{loading ? "Agent is comparing evidence…" : "Ask agent which itinerary to choose"}</button></div>
+            <div className="btn-row"><button type="button" className="btn btn-primary" onClick={() => void askAgent()} disabled={loading}>{loading ? "Agent is checking transfer evidence…" : "Check transfer evidence with Agent"}</button></div>
           </section>
-          <ContractVerdict brief={brief} fallback={fallback} delayMinutes={delayMinutes} scheduledConnectionMinutes={activeCandidate.connectionMinutes} researchError={researchError} selectedLabel={activeCandidate.flights.join(" + ")} alternativeLabel={alternativeCandidate.flights.join(" + ")} />
-          {brief && <section className="card"><div className="card-title-row"><h2>Use this recommendation</h2><ProvenancePill label="Traveller consent required" /></div><p>Confirming carries <strong>{brief.recommendedOption === "selected" ? activeCandidate.flights.join(" + ") : alternativeCandidate.flights.join(" + ")}</strong> into the airline watch simulation. No booking is created.</p><div className="btn-row"><button type="button" className="btn btn-primary" onClick={acceptRecommendation}>{bookedCandidate === (brief.recommendedOption === "selected" ? activeCandidateKey : alternativeCandidateKey) ? "Selected for airline watch" : "Use recommended itinerary"}</button></div></section>}
+          <DeterministicResult receipt={receipt} currency={kulConnectionCase.shortest.currency} />
+          <ContractVerdict brief={brief} researchError={researchError} baseline={activeCandidate} />
+          {brief && <section className="card"><div className="card-title-row"><h2>Use deterministic result</h2><ProvenancePill label="Traveller consent required" /></div><p>Confirming carries <strong>{receipt.recommendedFlights.join(" + ")}</strong> from the deterministic comparison into the airline watch simulation. No booking is created.</p><div className="btn-row"><button type="button" className="btn btn-primary" onClick={acceptRecommendation}>{bookedCandidate === receipt.recommendedKey ? "Selected for airline watch" : "Use deterministic itinerary"}</button></div></section>}
           <section className="card"><h2>Evidence ledger</h2>{kulConnectionCase.evidence.map((item) => <div className="evidence-item" key={item.kind}><strong>{item.kind}</strong><p>{item.detail}</p><a href={item.url} target="_blank" rel="noreferrer">Read source</a></div>)}</section>
         </>
       ) : (
@@ -744,7 +729,8 @@ export default function ConnectionIntegrityDemo() {
               </>
             )}
           </section>
-          <ContractVerdict brief={brief} fallback={fallback} delayMinutes={delayMinutes} scheduledConnectionMinutes={activeCandidate.connectionMinutes} researchError={researchError} selectedLabel={activeCandidate.flights.join(" + ")} alternativeLabel={alternativeCandidate.flights.join(" + ")} />
+          <DeterministicResult receipt={receipt} currency={kulConnectionCase.shortest.currency} />
+          <ContractVerdict brief={brief} researchError={researchError} baseline={activeCandidate} />
           {(brief?.connectionFit === "insufficient" || fallback === "insufficient") && <section className="card"><div className="card-title-row"><h2>Proposed intervention</h2><ProvenancePill label="Consent required" /></div><p>Offer the traveller the alternate routing <strong>{alternativeCandidate.flights.join(" + ")}</strong>; in this simulated intervention the airline waives the fare difference.</p><div className="btn-row"><button type="button" className="btn btn-primary" disabled={proposalSent} onClick={() => { recordAudit({ side: "airline", event: "airline-proposal-offer", detail: `Airline prepared a traveller offer for ${alternativeCandidate.flights.join(" + ")} (fare difference waived in this simulation)`, source: "Airline ops UI · demo simulation" }); setProposalSent(true); }}>{proposalSent ? "Traveller offer recorded (demo)" : "Prepare traveller offer"}</button></div>{proposalSent && <div className="banner banner-success">Proposal recorded. The traveller must still review and accept the alternative.</div>}</section>}
         </>
       )}
@@ -762,6 +748,7 @@ export default function ConnectionIntegrityDemo() {
             </div>
           ))}
       </section>
+      <AgentTrace state={traceState} collapsible />
     </div>
   );
 }

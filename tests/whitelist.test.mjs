@@ -9,7 +9,6 @@ function validBrief(overrides = {}) {
   return {
     connectionFit: "tight",
     protectionStatus: "not-confirmed",
-    recommendedOption: "alternative",
     recommendationSummary: "The buffered option adds 70 minutes for $14.19.",
     assessmentConfidence: "medium",
     rationale: "115 minutes exceeds the 60-minute published minimum by less than 90 minutes.",
@@ -40,7 +39,7 @@ test("every closed enum rejects out-of-whitelist values", () => {
   assert.equal(isWhitelistedConnectionBrief(validBrief({ connectionFit: "risky" })), false);
   assert.equal(isWhitelistedConnectionBrief(validBrief({ connectionFit: undefined })), false);
   assert.equal(isWhitelistedConnectionBrief(validBrief({ protectionStatus: "maybe" })), false);
-  assert.equal(isWhitelistedConnectionBrief(validBrief({ recommendedOption: "both" })), false);
+  assert.equal(isWhitelistedConnectionBrief(validBrief({ recommendedOption: "both" })), true);
   assert.equal(isWhitelistedConnectionBrief(validBrief({ assessmentConfidence: "very-high" })), false);
 });
 

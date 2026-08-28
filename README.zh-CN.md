@@ -71,9 +71,10 @@ interface ConnectionPolicy {
 
 - **本地评委入口**：运行 `npm run build:mock`，再用 `npm run preview -- --host 127.0.0.1 --port 4173` 提供 `dist/`。产物含 `mock-build-manifest.json`，声明 `Flight: mock`、`Agent: mock`、静态托管和 `api: not-served`。
 - **稳定公网入口**：只把这份 `dist/` 部署到自有静态主机，在本机设置 `PUBLIC_DEMO_URL`，再执行 `npm run recording-preflight -- --public-url $env:PUBLIC_DEMO_URL --require-public-url`。URL 有意不写入仓库。
-- **mock 模式能力范围**：无需任何凭据即可体验完整治理面——PVG → KUL → SIN 报价对比（标注为 ATRIP 快照 fixture）、Agent 推荐（标注 Demo fixture）、Itinerary Lab（mock fixture、诚实的空结果降级、已注册 KUL/AirAsia 60 + 90 策略条目的披露与显式无策略路径）、航司侧延误场景回放（确定性、明确标注的模拟）。不含实时 Tavily/LLM 证据研究与实时航班动态。
+- **mock 模式能力范围**：无需任何凭据即可体验完整治理面——PVG → KUL → SIN 的确定性选择与 Connection Resilience Receipt（标注为 ATRIP 快照 fixture）、Agent evidence/explanation（标注 Demo fixture）、Itinerary Lab（mock fixture、诚实的空结果降级、已注册 KUL/AirAsia 60 + 90 策略条目的披露与显式无策略路径）、航司侧延误场景回放（确定性、明确标注的模拟）。不含实时 Tavily/LLM 证据研究与实时航班动态。
 - **live 模式**：按[本地运行](#本地运行)在本机配置 `.env.local` 后运行 `npm run dev`，或在自有服务上运行 `npm run build` 加 `npm run server`。纯静态构建按设计不提供 `/api`；预订、支付、改签和云部署均未声称完成。
 - **Preflight**：`npm run judge-preflight` 检查 mock 产物与边界；`npm run recording-preflight` 额外检查 180 秒脚本、15 秒开场、双语演示锚点和四个官方评分维度。详见 [评委与录制前置检查](docs/JUDGE_PREFLIGHT.md)。
+- **提交素材**：已跟踪的截图、视觉 demo 产物、Figma 审计板、证据报告与明确排除项统一索引于[提交素材](docs/SUBMISSION_ASSETS.md)。
 
 `npm run build:mock` 是一键、Windows PowerShell 兼容的包装脚本（`scripts/build-mock.mjs`）：以进程环境变量强制 `VITE_FLIGHT_PROVIDER=mock`、`VITE_AGENT_PROVIDER=mock`（覆盖任何 `.env.local` 值），执行类型检查与生产构建，写入静态托管 manifest，产出无凭据的 `dist/`（没有任何密钥带 `VITE_` 前缀，因此不可能被打包）。
 

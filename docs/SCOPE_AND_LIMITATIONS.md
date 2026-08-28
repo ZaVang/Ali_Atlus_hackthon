@@ -71,6 +71,6 @@ Capabilities that competing products have and this prototype honestly lacks, eac
 
 ## 6. Post-purchase intervention is a simulation / 购买后干预是模拟
 
-Everything after "Use recommended itinerary" is a **deterministic demo simulation**: the inbound delay is injected and labelled simulated, the scenario replay is scripted, audit entries carry the `Scenario replay · demo simulation` source label, and no real booking, rebooking or payment occurs. This is the designed shape of the airline-side story until an authorized real-time flight-status source and real servicing capabilities are integrated; both prerequisites are listed in section 2.
+Everything after "Use deterministic itinerary" is a **deterministic demo simulation**: the inbound delay is injected and labelled simulated, the scenario replay is scripted, audit entries carry the `Scenario replay · demo simulation` source label, and no real booking, rebooking or payment occurs. This is the designed shape of the airline-side story until an authorized real-time flight-status source and real servicing capabilities are integrated; both prerequisites are listed in section 2.
 
-"Use recommended itinerary" 之后的一切都是**确定性演示模拟**：入站延误由注入产生并标注 simulated，场景回放是脚本化的，审计条目带 `Scenario replay · demo simulation` 来源标签，不产生真实订单、改签或支付。在接入授权的实时航班动态源与真实服务能力之前，这就是航司侧故事的既定形态；两项前置条件见第 2 节。
+"Use deterministic itinerary" 之后的一切都是**确定性演示模拟**：入站延误由注入产生并标注 simulated，场景回放是脚本化的，审计条目带 `Scenario replay · demo simulation` 来源标签，不产生真实订单、改签或支付。在接入授权的实时航班动态源与真实服务能力之前，这就是航司侧故事的既定形态；两项前置条件见第 2 节。

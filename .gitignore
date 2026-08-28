@@ -13,8 +13,10 @@ coverage/
 .DS_Store
 *.log
 
-# Local verification screenshots (legacy exploration; not part of the product)
-verify-screenshots/
+# Submission visuals: track the curated current bundle, keep legacy exploration local.
+verify-screenshots/*
+!verify-screenshots/current/
+!verify-screenshots/current/**
 
 # Local inspection sample (one-off ATRIP response capture, may carry pricing)
 atrip-sample.json

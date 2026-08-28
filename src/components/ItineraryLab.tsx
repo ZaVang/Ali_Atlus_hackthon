@@ -88,10 +88,9 @@ function rankingExplanation(priority: ConnectionChoicePriority, option: Itinerar
 function PolicyPill({ policy }: { policy: ConnectionPolicy }) {
   const parameters = `${policy.publishedMinimumMinutes} min published minimum + ${policy.planningBufferMinutes} min planning buffer`;
   return (
-    <span className="pill">
-      Policy: {policy.label} · {parameters}
-      {policy.policySource.illustrative ? " · illustrative template, not a verified policy" : ""}
-      {policy.policySource.url ? <> · <a href={policy.policySource.url} target="_blank" rel="noreferrer">source</a></> : ""}
+    <span className="policy-pill">
+      <span className="policy-pill-copy">Policy: {policy.label} · {parameters}{policy.policySource.illustrative ? " · illustrative template, not a verified policy" : ""}</span>
+      {policy.policySource.url ? <a className="policy-pill-source" href={policy.policySource.url} target="_blank" rel="noreferrer">Read policy source</a> : null}
     </span>
   );
 }
@@ -418,8 +417,6 @@ export default function ItineraryLab() {
         {message && <div className="banner banner-warning" role="status">{message}</div>}
       </section>
 
-      <AgentTrace state={traceState} compact />
-
       {status === "ready" && compatible.length > 0 && <>
         <section className="card">
           <div className="card-title-row"><h2>What matters most?</h2><ProvenancePill label="Agent understands preference; ranking is transparent" /></div>
@@ -438,6 +435,7 @@ export default function ItineraryLab() {
 
         {selected && <section className="card"><div className="card-title-row"><h2>Your selected combination</h2><ProvenancePill label="Consent required before any booking" /></div><p><strong>{flightName(selected.inbound)} → {flightName(selected.outbound)}</strong> · {formatMoney(selected.totalPrice, selected.currency)} · {formatDuration(selected.connectionMinutes)} at {selected.connectionAirport}.</p><p className="small muted">This is assembled from two provider offers. Confirm a single PNR, baggage-through, and servicing terms with the seller before purchase; this demo does not book or promise protection.</p><div className="recheck-panel"><div className="card-title-row"><h3>Offer freshness recheck</h3><ProvenancePill label={providers.flights.source === "atlas-sandbox" ? "Non-destructive Atlas search.do recheck" : "Snapshot provenance"} /></div><p className="small muted">A live recheck repeats the verified read-only <code>search.do</code> path and matches each exact <code>routingIdentifier</code>. It does not call <code>verify.do</code>, create a booking, take payment, or confirm ticket protection.</p><button type="button" className="btn btn-secondary" onClick={() => void recheckSelected()} disabled={recheckStatus === "loading" || !searchedDate}>{recheckStatus === "loading" ? "Rechecking offers…" : "Recheck both offers"}</button>{recheckResults && recheckOfferId === selected.id && <div className="recheck-results" role="status"><p className="small"><strong>{recheckSummary(recheckResults)}</strong></p>{recheckResults.map((result, index) => <div className="evidence-item" key={`${selected.id}-${index}`}><strong>{index === 0 ? "Inbound" : "Outbound"} · {recheckStatusLabel(result)} · source: {result.source}</strong><p className="small">routingIdentifier: <span className="routing-id">{result.routingIdentifier ?? "not available"}</span></p><p className="small muted">{result.message}</p></div>)}</div>}</div></section>}
       </>}
+      <AgentTrace state={traceState} compact collapsible />
     </div>
   );
 }

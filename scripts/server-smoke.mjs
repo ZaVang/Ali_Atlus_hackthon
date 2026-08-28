@@ -185,10 +185,9 @@ async function livePhase() {
       brief
       && ["comfortable", "tight", "insufficient"].includes(brief.connectionFit)
       && ["confirmed", "not-confirmed"].includes(brief.protectionStatus)
-      && ["selected", "alternative"].includes(brief.recommendedOption)
       && typeof brief.recommendationSummary === "string"
       && typeof brief.rationale === "string";
-    console.log(`model=${body.model}  attempts=${body.attempts}  sources=${Array.isArray(body.sources) ? body.sources.length : 0} (official: ${officialCount})  connectionFit=${brief?.connectionFit}  recommendedOption=${brief?.recommendedOption}`);
+    console.log(`model=${body.model}  attempts=${body.attempts}  sources=${Array.isArray(body.sources) ? body.sources.length : 0} (official: ${officialCount})  connectionFit=${brief?.connectionFit}  candidate=deterministic`);
     report("POST /api/agent/connection-research → whitelist-valid brief with official source", Boolean(validBrief && officialCount > 0 && (body.attempts === 1 || body.attempts === 2)));
   } finally {
     child.kill();

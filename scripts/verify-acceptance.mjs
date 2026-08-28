@@ -49,6 +49,9 @@ function fit(remainingMinutes) {
 check("rubric: 115 min → tight", fit(115) === "tight");
 check("rubric: 185 min → comfortable", fit(185) === "comfortable");
 check("rubric: 115 min after +60 delay (55 min) → insufficient", fit(115 - 60) === "insufficient");
+check("receipt arithmetic: $14.19 extra fare uses cents", Math.round((148.10 - 133.91) * 100) === 1419);
+check("receipt arithmetic: +70 min buffer", 185 - 115 === 70);
+check("receipt arithmetic: 125 vs 55 after +60 min", 185 - 60 === 125 && 115 - 60 === 55);
 
 // --- 4. Built bundle disclosures -------------------------------------------
 const distAssets = join(root, "dist/assets");
@@ -95,6 +98,11 @@ const required = [
   ["trace unavailable provenance", "Unavailable · no claim shown"],
   ["trace Seattle origin disclosure", "Problem origin · Seattle"],
   ["trace Sandbox narrative disclosure", "not the Seattle incident"],
+  ["deterministic receipt", "Connection Resilience Receipt"],
+  ["receipt counterfactual boundary", "deterministic replay/counterfactual only"],
+  ["deterministic result heading", "Deterministic recommendation"],
+  ["baseline Agent evidence disclosure", "Agent evidence for"],
+  ["Agent evidence-only CTA", "Check transfer evidence with Agent"],
 ];
 for (const [name, text] of required) {
   check(`dist: required label "${name}"`, bundle.includes(text));
@@ -140,6 +148,7 @@ const appSource = readSrc("App.tsx");
 check("behaviour: no legacy traveller/ops view is reachable", !/OpsBoard|TravellerFlow/.test(appSource));
 const integritySource = readSrc("components/ConnectionIntegrityDemo.tsx");
 const traceSource = readSrc("domain/agent-trace.ts");
+const researchCacheSource = readSrc("domain/connection-research-cache.ts");
 check(
   "behaviour: ticket protection is disclosed separately from time fit",
   integritySource.includes("Ticket protection not confirmed") && integritySource.includes("Likely comfortable"),
@@ -178,6 +187,31 @@ const sandboxSource = readSrc("providers/sandbox-atlas.ts");
 check(
   "behaviour: ATRIP segments map from structured fromSegments, not identifier regex guessing",
   sandboxSource.includes("mapSegments(routing.fromSegments)") && !sandboxSource.includes("parseSegmentsFromIdentifier"),
+);
+check(
+  "behaviour: deterministic receipt owns candidate binding while Agent output is explanation-only",
+  integritySource.includes("createConnectionResilienceReceipt") && integritySource.includes("Agent role:") && !integritySource.includes("brief.recommendedOption"),
+);
+check(
+  "behaviour: deterministic result is separate from the named baseline Agent evidence container",
+  integritySource.includes("function DeterministicResult") && integritySource.includes("Agent evidence for {baseline.flights.join") && integritySource.includes("<details className=\"agent-evidence\">") && !integritySource.includes("Deterministic choice:"),
+);
+check(
+  "behaviour: pre-change v5 evidence cache is hard-invalidated and v6 requires exact semantics",
+  researchCacheSource.includes('research:v6:') && researchCacheSource.includes('research:v5:') && researchCacheSource.includes("CONNECTION_RESEARCH_SEMANTICS_VERSION") && researchCacheSource.includes("storage.removeItem(`${CONNECTION_RESEARCH_LEGACY_V5_PREFIX}${key}`)"),
+);
+check(
+  "copy: Agent checks/explains evidence while deterministic comparison chooses",
+  integritySource.includes("Check transfer evidence with Agent") && integritySource.includes("Agent is checking transfer evidence") && integritySource.includes("deterministic comparison owns the final candidate") && !integritySource.includes("Ask agent which itinerary to choose"),
+);
+const stylesSource = readSrc("styles.css");
+check(
+  "behaviour: PolicyPill has a dedicated readable source-link structure without overflow masking",
+  labSource.includes("policy-pill-copy") && labSource.includes("policy-pill-source") && stylesSource.includes(".policy-pill-source") && stylesSource.includes("min-width: max-content") && !stylesSource.includes("overflow-x: hidden"),
+);
+check(
+  "behaviour: trace is collapsible and rendered after primary product states",
+  integritySource.includes("<AgentTrace state={traceState} collapsible") && labSource.includes("<AgentTrace state={traceState} compact collapsible"),
 );
 check(
   "behaviour: selected offers expose a non-destructive exact-routing recheck",

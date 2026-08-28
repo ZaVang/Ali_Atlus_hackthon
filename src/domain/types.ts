@@ -74,7 +74,6 @@ export interface ParsedConnectionPreference {
 
 export type ConnectionFit = "comfortable" | "tight" | "insufficient";
 export type ConnectionProtectionStatus = "confirmed" | "not-confirmed";
-export type ConnectionRecommendation = "selected" | "alternative";
 export type ConnectionAssessmentConfidence = "low" | "medium" | "high";
 
 export interface ConnectionContractBrief {
@@ -83,8 +82,7 @@ export interface ConnectionContractBrief {
   connectionFit: ConnectionFit;
   /** Ticket protection is deliberately separate from time adequacy. */
   protectionStatus: ConnectionProtectionStatus;
-  /** Which of the two supplied options the agent would pick for the traveller. */
-  recommendedOption: ConnectionRecommendation;
+  /** Agent-owned explanation only; deterministic comparison owns the candidate. */
   recommendationSummary: string;
   assessmentConfidence: ConnectionAssessmentConfidence;
   rationale: string;

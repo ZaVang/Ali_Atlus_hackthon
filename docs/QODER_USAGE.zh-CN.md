@@ -23,7 +23,7 @@ English version: [How I built this project with Qoder](QODER_USAGE.md)
 - **契约先行**：产品契约 `docs/CONNECTION_INTEGRITY_DEMO.md` 在会话中起草并多轮修订，UI 文案、Provider 边界、验收项全部由它推导。
 - **Canvas 报告**：Quest 阶段以 4 份 Canvas 可视化报告交付（叙事研究、Agent 注入方案、天气扩展、demo 完成报告）。
 - **Repo Wiki**：用 Qoder 生成过项目 wiki 用于快速建立全局认知（pivot 前的旧版已作废，见 `.gitignore`）。
-- **浏览器验证**：pivot 前探索期用 88 张截图逐一核对每个面板的文案与行为，已作为 legacy 探索证据归档至 `verify-screenshots/legacy/`；当前产品的 11 张截图已在 `verify-screenshots/current/` 全部就位（含 live 全链路研究一屏）。后期升级为"我亲眼观看给反馈"。
+- **浏览器验证**：pivot 前 88 张截图继续作为 ignored legacy 探索证据；`verify-screenshots/current/` 的最终产品素材现已跟踪、可随 clone 复现，但它证明的是产品状态，不是 Qoder session/Quest/Canvas provenance。后期验证升级为“我亲眼观看给反馈”。
 - **记忆系统**：关键教训沉淀为长期记忆，例如「异步 Provider 结果写 React 共享状态需代际守卫防过期覆盖」「Vite 中间件读取非 VITE_ 变量需显式 loadEnv」「LLM 角色边界：只说话不执行」，在后续会话中直接被复用。
 - **Subagent 对抗审计**：决赛前派独立的 CodeReview subagent 以苛刻评委身份审全仓，13 条扣分全部对账后修复 11 条，并把教训写进门禁正则，防止回潮。
 
@@ -53,26 +53,31 @@ hackathon 主题是 Agentic AI。我们用 Qoder 的方式本身就是 agentic �
 | 4 轮会话记录（2 轮 Quest：task-2f5、task-e19） | Qoder 会话历史 |
 | 4 份 Canvas 阶段报告（叙事研究 / Agent 注入 / 天气扩展 / demo 完成） | Qoder Canvas |
 | 88 张浏览器验证截图（legacy 探索证据，pivot 前旧产品） | `verify-screenshots/legacy/` |
-| 当前产品的 11 张截图（预期的 reviewer/Qoder 附件，本 checkout 中不存在） | `verify-screenshots/current/`（清单见下；截图验收前必须附上） |
-| 60 项断言的验收门禁（含 rubric 边界、筛选/排序规则、策略注册表与 brief 白名单的数值化单元测试） | `scripts/verify-acceptance.mjs`（`npm run verify`） |
+| 当前提交视觉素材（19 张 PNG，清单见下） | `verify-screenshots/current/` |
+| 95 项断言的验收门禁（含 rubric 边界、确定性 Receipt/cache ownership、筛选/排序规则、策略注册表与 brief 白名单） | `scripts/verify-acceptance.mjs`（`npm run verify`） |
 | 产品契约 | `docs/CONNECTION_INTEGRITY_DEMO.md` |
 | 评委讲解稿 | `docs/DEMO_WALKTHROUGH.zh-CN.md` |
 | 归档的探索过程（pivot 前文档） | `docs/legacy/` |
 
-### 预期的当前产品截图清单（`verify-screenshots/current/`）
+### 已跟踪的当前产品视觉素材（`verify-screenshots/current/`）
 
-下表是附件检查清单，不是文件存在的证明。本仓库 checkout 不包含 `verify-screenshots/current/`；提交前必须由人工/Qoder 附上截图，并把每张截图的 provider/source 路径与实际运行核对一致。
+该素材包随提交一并进入仓库。1–10 号截图保留 8 月 25–26 日的 provider/research 证据；最终 11–14 号截图和 Figma board 预览展示对抗审计后的 result-first 产品。产品截图仍不能替代外部 Qoder session/Quest/Canvas 导出。
 
 | 文件 | 内容 | 数据路径 |
 |---|---|---|
 | `current-1-header.png` | 顶栏：视图切换与 Flight/Agent provider 徽标 | Flight = atlas-sandbox 真实搜索 |
 | `current-2-itinerary-input.png` | `Try an itinerary` 搜索表单（PVG → KUL → SIN 案例） | Flight = atlas-sandbox 真实搜索 |
-| `current-3-assessment.png` | Agent 推荐面板：时间适配、票务保障与所选方案 | Flight = atlas-sandbox 真实搜索 · Agent = mock |
+| `current-3-assessment.png` | 确定性 Receipt 与具名 baseline 的 Agent evidence：时间适配和票务保障只属于该 baseline | Flight = atlas-sandbox 真实搜索 · Agent = mock |
 | `current-4-live-research-fallback.png` | mock agent 完整结论面板（Agent: mock 路径示例） | Flight = atlas-sandbox 真实搜索 · Agent = mock |
-| `current-4-live-research.png` | `Ask agent` live 实时证据链研究结果：来源分层（OFFICIAL×1 + COMMUNITY×2）、search rounds 遥测（1 轮、约 27 s）与结构化结论 | Flight = atlas-sandbox 真实搜索 · Agent = deepseek live |
+| `current-4-live-research.png` | `Check transfer evidence with Agent` live 实时证据链研究结果：来源分层（OFFICIAL×1 + COMMUNITY×2）、search rounds 遥测（1 轮、约 27 s）与具名 baseline 结论；最终候选由确定性比较选择 | Flight = atlas-sandbox 真实搜索 · Agent = deepseek live |
 | `current-5-airline-side.png` | 航司侧：模拟进港延误事件与需同意的干预建议 | Flight = atlas-sandbox 真实搜索 · Agent = mock |
 | `current-6-audit-trail.png` | 持久化审计轨迹：带时间戳与来源标签的同意/提案事件 | Flight = atlas-sandbox 真实搜索 · Agent = mock |
 | `current-7-honest-banner.png` | 诚实的搜索失败横幅：无实时数据则不出推荐 | Flight = atlas-sandbox 真实搜索 |
 | `current-8-policy-pill.png` | Itinerary Lab Policy pill（AirAsia Fly-Thru · KLIA Terminal 2 · 60 min minimum + 90 min buffer · source 链接），68 个返回配对与组合卡 | Flight = atlas-sandbox 真实搜索 · 策略由 `connection-policies` 注册表解析 |
 | `current-9-scenario-replay.png` | 航司视图 Scenario replay 时间线（四步：3 完成 + 1 进行中）、insufficient 结论、干预提案与来源为 "Scenario replay · demo simulation" 的审计条目 | 确定性 demo fixture 回放（全模拟） |
 | `current-10-hosted-demo.png` | Vercel 托管 mock 构建的真实首屏（Flight: mock / Agent: mock 徽标、hero 文案、Policy pill） | mock 静态托管构建（无凭据） |
+| `current-11-final-desktop-main.png` | 95 分审计后的最终桌面入口与两条具名选项 | mock 静态构建 · 当前最终 UI |
+| `current-12-resilience-receipt-mobile.png` | 最终 Connection Resilience Receipt、具名 baseline Agent evidence 与确定性同意动作 | mock 静态构建 · 确定性 fixture |
+| `current-13-airline-replay-mobile.png` | 最终 390px 航司 scenario replay 与确定性结果 | mock 静态构建 · 模拟 +60 分钟事件 |
+| `current-14-itinerary-policy-mobile.png` | 最终 390px Itinerary Lab policy source 与透明排序 | mock 静态构建 · 无横向溢出 |
+| `figma-product-audit-board.png` | 可编辑 95/100 Figma 审计板的导出预览 | 人工产品审计；源链接见 `docs/SUBMISSION_ASSETS.md` |

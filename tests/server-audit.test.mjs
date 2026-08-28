@@ -106,7 +106,6 @@ function synthesisReply({ protectionStatus = "not-confirmed" } = {}) {
         content: JSON.stringify({
           connectionFit: "tight",
           protectionStatus,
-          recommendedOption: "alternative",
           recommendationSummary: "The buffered option adds time for a disclosed fare difference.",
           assessmentConfidence: "medium",
           rationale: "The selected window is above the published minimum but below the planning target.",

@@ -952,6 +952,13 @@ code {
   padding: 14px;
 }
 
+.policy-pill { display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; padding: 4px 8px; border: 1px solid #c3ccd6; border-radius: 10px; background: #fff; color: var(--ink-soft); font-size: 11px; font-weight: 600; }
+.policy-pill-copy { min-width: 0; overflow-wrap: normal; }
+.policy-pill-source { flex: 0 0 auto; color: var(--sky); font-weight: 800; white-space: nowrap; text-decoration: underline; }
+.agent-trace-details { margin-top: 12px; }
+.agent-trace-details > summary { cursor: pointer; color: var(--sky); font-weight: 700; }
+.agent-trace-details[open] > summary { margin-bottom: 12px; }
+
 .agent-trace-kicker {
   margin: 0 0 3px;
   color: var(--sky);
@@ -1196,6 +1203,9 @@ code {
 .integrity-route, .integrity-times { font-size: 13px; color: var(--ink-soft); }
 .integrity-price { margin-top: 6px; color: var(--sky); font-size: 22px; font-weight: 800; }
 .contract-verdict { border-left: 5px solid var(--sky); margin-bottom: 20px; padding: 18px; border-radius: 0 10px 10px 0; background: #fff; box-shadow: var(--shadow); }
+.resilience-receipt { margin-top: 14px; padding: 14px; border: 1px solid rgba(31,157,97,.35); border-radius: 10px; background: rgba(31,157,97,.06); }
+.resilience-receipt h3 { margin: 0 0 8px; color: var(--navy); }
+.resilience-receipt p { overflow-wrap: anywhere; }
 .contract-missing { border-left-color: var(--warning); background: rgba(217,138,31,.08); }
 .contract-fragile { border-left-color: var(--danger); background: rgba(201,79,61,.08); }
 .contract-protected { border-left-color: var(--success); background: rgba(31,157,97,.08); }
@@ -1221,7 +1231,19 @@ code {
 .integrity-event span { font-weight: 700; color: var(--ink-soft); }
 .integrity-event button { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; font: inherit; cursor: pointer; }
 .integrity-event button.selected { border-color: var(--danger); background: rgba(201,79,61,.1); color: var(--danger); font-weight: 700; }
-@media (max-width: 640px) { .integrity-options { grid-template-columns: 1fr; } .integrity-tabs { flex-direction: column; } .integrity-hero h1 { font-size: 25px; } }
+@media (max-width: 640px) { .integrity-options { grid-template-columns: 1fr; } .integrity-tabs { flex-direction: column; } .integrity-tabs button, .integrity-event button { max-width: 100%; overflow-wrap: anywhere; } .integrity-hero h1 { font-size: 25px; } }
+
+@media (max-width: 390px) {
+  .topbar h1 { min-width: 0; overflow-wrap: anywhere; }
+  .mode-badge, .pill { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+  .policy-pill { display: flex; flex-direction: column; align-items: flex-start; width: 100%; overflow-wrap: normal; }
+  .policy-pill-copy { overflow-wrap: normal; word-break: normal; }
+  .policy-pill-source { align-self: flex-start; min-width: max-content; }
+  .card-title-row, .evidence-row, .btn-row { min-width: 0; }
+  .integrity-demo, .itinerary-lab, .card, .contract-verdict, .agent-trace, .resilience-receipt { min-width: 0; }
+  .integrity-option, .agent-trace-row, .scenario-step-copy, .routing-id { min-width: 0; overflow-wrap: anywhere; }
+  .integrity-hero { padding: 20px; }
+}
 
 /* --- Scenario replay (airline view) ----------------------------------------
    Segmented Scenario/Manual trigger switch plus the replayed timeline steps.

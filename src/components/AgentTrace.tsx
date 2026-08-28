@@ -28,7 +28,13 @@ function TraceRow({ event, index }: { event: AgentTraceEvent; index: number }) {
   );
 }
 
-export default function AgentTrace({ state, compact = false }: { state: AgentTraceState; compact?: boolean }) {
+export default function AgentTrace({ state, compact = false, collapsible = false }: { state: AgentTraceState; compact?: boolean; collapsible?: boolean }) {
+  const content = <>
+    <p className="muted small">The trace exposes stage status and provenance only. It never shows a private prompt, API key, or chain-of-thought. Agent language is advisory; the deterministic engine owns ranking, policy gates, execution, and consent.</p>
+    <ol className="agent-trace-list">
+      {state.events.map((event, index) => <TraceRow key={event.id} event={event} index={index} />)}
+    </ol>
+  </>;
   return (
     <section className={`agent-trace ${compact ? "agent-trace-compact" : ""}`.trim()} aria-label="Safe Agent trace">
       <div className="card-title-row">
@@ -38,10 +44,7 @@ export default function AgentTrace({ state, compact = false }: { state: AgentTra
         </div>
         <span className="pill">Run {state.runId}</span>
       </div>
-      <p className="muted small">The trace exposes stage status and provenance only. It never shows a private prompt, API key, or chain-of-thought. Agent language is advisory; the deterministic engine owns ranking, policy gates, execution, and consent.</p>
-      <ol className="agent-trace-list">
-        {state.events.map((event, index) => <TraceRow key={event.id} event={event} index={index} />)}
-      </ol>
+      {collapsible ? <details className="agent-trace-details"><summary>Show Agent trace and provenance</summary>{content}</details> : content}
     </section>
   );
 }

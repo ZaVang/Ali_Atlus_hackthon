@@ -24,6 +24,8 @@ const tsc = spawnSync(
     "src/domain/rubric.ts",
     "src/domain/itinerary-rules.ts",
     "src/domain/agent-trace.ts",
+    "src/domain/connection-resilience.ts",
+    "src/domain/connection-research-cache.ts",
     "src/providers/bailian-agent.ts",
     "src/providers/sandbox-atlas.ts",
     "src/providers/mock-atlas.ts",
@@ -65,7 +67,7 @@ writeFileSync(join(root, outDir, "package.json"), JSON.stringify({ type: "module
 
 const run = spawnSync(
   process.execPath,
-  ["--test", "tests/rubric.test.mjs", "tests/itinerary-rules.test.mjs", "tests/agent-trace.test.mjs", "tests/whitelist.test.mjs", "tests/connection-policy.test.mjs", "tests/sandbox-atlas.test.mjs", "tests/preflight.test.mjs", "tests/server-audit.test.mjs"],
+  ["--test", "tests/rubric.test.mjs", "tests/itinerary-rules.test.mjs", "tests/agent-trace.test.mjs", "tests/connection-resilience.test.mjs", "tests/connection-research-cache.test.mjs", "tests/whitelist.test.mjs", "tests/connection-policy.test.mjs", "tests/sandbox-atlas.test.mjs", "tests/preflight.test.mjs", "tests/server-audit.test.mjs"],
   { cwd: root, stdio: "inherit" },
 );
 

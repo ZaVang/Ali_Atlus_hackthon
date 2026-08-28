@@ -1,0 +1,25 @@
+{
+  "contractVersion": 1,
+  "rubric": {
+    "Innovation": { "max": 30, "trackedPoints": 25 },
+    "Feasibility": { "max": 30, "trackedPoints": 21 },
+    "Qoder": { "max": 20, "trackedPoints": 12 },
+    "Demo": { "max": 20, "trackedPoints": 15 }
+  },
+  "evidence": [
+    { "id": "product-contract", "status": "TRACKED_REPRODUCIBLE", "location": "src/components/ConnectionIntegrityDemo.tsx", "verification": "npm run verify" },
+    { "id": "resilience-receipt", "status": "TRACKED_REPRODUCIBLE", "location": "src/domain/connection-resilience.ts", "verification": "npm test && npm run verify" },
+    { "id": "qoder-session-quest-canvas", "status": "HUMAN_EXTERNAL", "location": "Qoder session, Quest, and Canvas history", "verification": "human export review" },
+    { "id": "tracked-submission-visual-assets", "status": "TRACKED_REPRODUCIBLE", "location": "verify-screenshots/current/", "verification": "npm run score and verify-screenshots/current/README.md" },
+    { "id": "local-qoder-repowiki", "status": "LOCAL_PRESENT_IGNORED", "location": ".qoder/", "verification": "IDE-generated cache; not tracked and not Qoder session provenance" },
+    { "id": "public-deployment", "status": "WAIVED", "location": "docs/ALIBABA_CLOUD_DEPLOYMENT.md", "verification": "outside local-demo scope" },
+    { "id": "video-recording", "status": "WAIVED", "location": "docs/DEMO_VIDEO_SCRIPT.md", "verification": "explicitly excluded from this sprint" }
+  ],
+  "gapClosures": [
+    { "id": "authorized-operational-proof", "status": "HUMAN_EXTERNAL", "points": 8, "label": "authorized flight-status plus Atlas verify/book/servicing proof" },
+    { "id": "qoder-provenance-export", "status": "HUMAN_EXTERNAL", "points": 5, "label": "Qoder session/Quest/Canvas export and current-product provenance review" },
+    { "id": "innovation-outcome-validation", "status": "HUMAN_EXTERNAL", "points": 3, "label": "outcome/novelty validation artifact without inventing a probability" },
+    { "id": "on-screen-demo-human-review", "status": "HUMAN_EXTERNAL", "points": 6, "label": "human review of the on-screen result-first demo experience" },
+    { "id": "video-recording", "status": "WAIVED", "points": 0, "label": "video remains visible but has zero score effect" }
+  ]
+}

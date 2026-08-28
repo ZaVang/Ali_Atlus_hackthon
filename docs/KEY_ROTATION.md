@@ -43,8 +43,8 @@ Run every item before any external shipment. 任何外发前逐条执行。
    Any hit is a stop-the-line event: remove the file, then rotate per section 2 anyway. 任何命中都是停止线事件：移除该文件，并按第 2 节照常轮换。
 3. **`dist/` and build artifacts are credential-free by design** (no secret carries a `VITE_` prefix, so Vite never bundles them), but still confirm the shipped `dist/` was produced from a clean tree and contains no copied `.env*` files.
    **`dist/` 与构建产物按设计不含密钥**（没有任何密钥带 `VITE_` 前缀，因此不会被 Vite 打包），仍需确认外发的 `dist/` 来自干净工作区且未被拷入任何 `.env*` 文件。
-4. **Supporting material:** videos, screenshots (`verify-screenshots/` is git-ignored and shows no secrets by design), sample JSON (`atrip-sample.json` is git-ignored) — review anything leaving the repo once more for accidentally captured headers or environment values.
-   **附属材料**：视频、截图（`verify-screenshots/` 已被 git 忽略且按设计不含密钥）、样例 JSON（`atrip-sample.json` 已被 git 忽略）——对任何离开仓库的材料再复查一次是否误录了请求头或环境值。
+4. **Supporting material:** the curated `verify-screenshots/current/` bundle is tracked after secret review; legacy screenshots and `atrip-sample.json` remain ignored. Re-check any new asset for accidentally captured headers or environment values before adding it.
+   **附属材料**：经密钥复核后的 `verify-screenshots/current/` 当前素材包已跟踪；legacy 截图与 `atrip-sample.json` 继续忽略。新增素材入库前仍须复查是否误录请求头或环境值。
 5. **`.env.example` stays all-empty.** Diff it before shipping; it is the only env-shaped file allowed in submissions.
    **`.env.example` 保持全空。** 外发前 diff 一次；它是唯一允许出现在提交材料中的 env 形态文件。
 6. **After shipment:** if there is any doubt about items 1–4, rotate all three credential sets immediately.

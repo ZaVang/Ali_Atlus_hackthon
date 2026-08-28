@@ -226,7 +226,6 @@ function isStructuredBrief(value) {
   if (!isRecord(value)) return false;
   if (!["comfortable", "tight", "insufficient"].includes(value.connectionFit)) return false;
   if (!["confirmed", "not-confirmed"].includes(value.protectionStatus)) return false;
-  if (!["selected", "alternative"].includes(value.recommendedOption)) return false;
   if (!["low", "medium", "high"].includes(value.assessmentConfidence)) return false;
   if (!["recommendationSummary", "rationale", "nextAction"].every((key) => typeof value[key] === "string" && value[key].length > 0 && value[key].length <= 8_000)) return false;
   if (!["keyFactors", "limitations"].every((key) => Array.isArray(value[key]) && value[key].length <= 8 && value[key].every((item) => typeof item === "string" && item.length > 0 && item.length <= 1_000))) return false;
@@ -502,11 +501,11 @@ export function createConnectionResearchHandler(getEnv) {
     const system = [
       "You are the Connection Integrity research agent.",
       "You must make two search_connection_evidence calls before producing a decision: one official and one community search. Focus them on the actual connection airport, terminal process, airline and transfer time.",
-      'After tool results, return ONLY JSON: {"connectionFit":"comfortable|tight|insufficient","protectionStatus":"confirmed|not-confirmed","recommendedOption":"selected|alternative","recommendationSummary":string,"assessmentConfidence":"low|medium|high","rationale":string,"keyFactors":string[],"limitations":string[],"nextAction":string}.',
+      'After tool results, return ONLY JSON: {"connectionFit":"comfortable|tight|insufficient","protectionStatus":"confirmed|not-confirmed","recommendationSummary":string,"assessmentConfidence":"low|medium|high","rationale":string,"keyFactors":string[],"limitations":string[],"nextAction":string}.',
       "ConnectionFit answers only whether the planned time is workable; it is never a missed-connection probability. ProtectionStatus answers whether the supplied offer proves airline/booking protection; it must not lower ConnectionFit merely because the protection evidence is missing.",
       "Use only the supplied itinerary, alternative, policy input and tool results. Never infer a single PNR, baggage-through, immigration requirement, airline liability, or probability.",
       rubricSentence,
-      "Choose selected or alternative for the traveller. Compare the two supplied connection windows and fare difference. Recommend the alternative only when its extra buffer creates a material improvement for the traveller; do not recommend verification as a substitute for a choice.",
+      "Explain the evidence for the supplied candidates. The deterministic product comparison, not this Agent, owns the final candidate and fare/time trade-off.",
     ].join(" ");
     const tool = {
       type: "function",
@@ -627,13 +626,13 @@ export function createConnectionResearchHandler(getEnv) {
           role: "system",
           content: [
             "You are the final Connection Integrity assessor.",
-            'Return ONLY JSON: {"connectionFit":"comfortable|tight|insufficient","protectionStatus":"confirmed|not-confirmed","recommendedOption":"selected|alternative","recommendationSummary":string,"assessmentConfidence":"low|medium|high","rationale":string,"keyFactors":string[],"limitations":string[],"nextAction":string}.',
+            'Return ONLY JSON: {"connectionFit":"comfortable|tight|insufficient","protectionStatus":"confirmed|not-confirmed","recommendationSummary":string,"assessmentConfidence":"low|medium|high","rationale":string,"keyFactors":string[],"limitations":string[],"nextAction":string}.',
             "ConnectionFit is time adequacy only, never a probability. ProtectionStatus is a separate booking-protection fact. AssessmentConfidence is confidence in this evidence review, never chance of catching a flight.",
             "Use only the supplied itinerary, alternative and research results. Do not infer a single PNR, baggage-through, immigration requirement, airline liability, or a calibrated probability.",
             policy
               ? `Apply this transparent planning rubric from the registered policy "${policy.label}" unless airport-specific evidence contradicts it: below the published minimum of ${policy.publishedMinimumMinutes} minutes is insufficient; meeting it with less than ${policy.planningBufferMinutes} additional minutes is tight; with ${policy.planningBufferMinutes} or more additional minutes is comfortable. Do not make a comfortable connection tight solely because protection is not confirmed.`
               : `${NO_POLICY_DISCLOSURE} Do not invent a published minimum or planning buffer; judge time adequacy only from the retrieved evidence and disclose the missing policy parameters in limitations.`,
-            "Make a choice between selected and alternative. State the time and fare trade-off in recommendationSummary; do not respond only with a verification request.",
+            "Explain evidence only. The deterministic product comparison owns the candidate choice and fare/time trade-off.",
             'Use the phrase "published minimum connection time" in traveller-facing text; never use the abbreviation "MCT".',
           ].join(" "),
         },
@@ -664,7 +663,6 @@ export function createConnectionResearchHandler(getEnv) {
       const content = JSON.stringify({
         connectionFit: parsedBrief.connectionFit,
         protectionStatus: parsedBrief.protectionStatus,
-        recommendedOption: parsedBrief.recommendedOption,
         recommendationSummary: parsedBrief.recommendationSummary,
         assessmentConfidence: parsedBrief.assessmentConfidence,
         rationale: parsedBrief.rationale,

@@ -104,7 +104,6 @@ export function isWhitelistedConnectionBrief(parsed: unknown): parsed is Connect
   const brief = parsed as {
     connectionFit?: unknown;
     protectionStatus?: unknown;
-    recommendedOption?: unknown;
     recommendationSummary?: unknown;
     assessmentConfidence?: unknown;
     rationale?: unknown;
@@ -116,7 +115,6 @@ export function isWhitelistedConnectionBrief(parsed: unknown): parsed is Connect
   if (
     (brief.connectionFit !== "comfortable" && brief.connectionFit !== "tight" && brief.connectionFit !== "insufficient")
     || (brief.protectionStatus !== "confirmed" && brief.protectionStatus !== "not-confirmed")
-    || (brief.recommendedOption !== "selected" && brief.recommendedOption !== "alternative")
     || (brief.assessmentConfidence !== "low" && brief.assessmentConfidence !== "medium" && brief.assessmentConfidence !== "high")
   ) return false;
   if (!boundedText(brief.recommendationSummary, 4_000) || !boundedText(brief.rationale, 8_000) || !boundedText(brief.nextAction, 4_000)) return false;
@@ -227,7 +225,7 @@ export class BailianAgentProvider implements AgentProvider {
       if (typeof body.content !== "string" || body.content.length === 0) throw new Error("Connection research returned no content");
       const parsed: unknown = JSON.parse(body.content);
       if (!isWhitelistedConnectionBrief(parsed)) throw new Error("Agent returned invalid connection assessment");
-      const { connectionFit, protectionStatus, recommendedOption, recommendationSummary, assessmentConfidence, rationale, keyFactors, limitations, nextAction } = parsed;
+      const { connectionFit, protectionStatus, recommendationSummary, assessmentConfidence, rationale, keyFactors, limitations, nextAction } = parsed;
       const rawSources = body.sources;
       if (rawSources !== undefined && (!Array.isArray(rawSources) || rawSources.length > 8 || !rawSources.every((item) => isWhitelistedConnectionSource(item)))) {
         throw new Error("Connection research returned an unsafe source link");
@@ -252,7 +250,6 @@ export class BailianAgentProvider implements AgentProvider {
       return {
         connectionFit,
         protectionStatus,
-        recommendedOption,
         recommendationSummary,
         assessmentConfidence,
         rationale,

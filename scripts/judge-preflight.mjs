@@ -45,8 +45,8 @@ export const REQUIRED_UI_LABELS = [
 const MAIN_FLOW_LABELS = [
   "Connection Integrity Agent",
   "PVG → KUL → SIN",
-  "Ask agent which itinerary to choose",
-  "Use recommended itinerary",
+  "Check transfer evidence with Agent",
+  "Use deterministic itinerary",
   "Airline: intervene after an event",
   "Simulated operational event",
   "Traveller consent required",
@@ -67,6 +67,7 @@ const DOC_FILES = [
   "docs/CONNECTION_INTEGRITY_DEMO.md",
   "docs/SCOPE_AND_LIMITATIONS.md",
   "docs/ALIBABA_CLOUD_DEPLOYMENT.md",
+  "docs/SUBMISSION_ASSETS.md",
 ];
 
 function result(status, name, detail = "") {
@@ -167,6 +168,11 @@ export function evaluateMockArtifact({ bundle = "", files = [], manifest = null 
     "main flow labels are reachable from the shipped bundle",
     MAIN_FLOW_LABELS.every((label) => bundle.includes(label)),
     "the main traveller → consent → airline replay labels must remain reachable",
+  );
+  add(
+    "legacy Agent-owns-choice CTA copy does not ship",
+    !bundle.includes("Ask agent which itinerary to choose") && !bundle.includes("Use recommended itinerary"),
+    "Agent checks/explains evidence; deterministic comparison chooses",
   );
 
   const nameHits = [];
@@ -342,13 +348,14 @@ function documentationChecks(mode) {
   const checks = [];
   const add = (name, ok, detail = "") => checks.push(result(ok ? "PASS" : "FAIL", name, detail));
   const docs = Object.fromEntries(DOC_FILES.map((file) => [file, readText(file)]));
+  let evidenceContract = null;
+  try { evidenceContract = JSON.parse(readText("docs/JUDGE_EVIDENCE.json")); } catch { /* reported by the check below */ }
   for (const file of DOC_FILES) add(`documentation exists: ${file}`, docs[file].length > 0, "file missing or empty");
   add(
     "container deployment contract is present",
     existsSync(join(root, "Dockerfile")) && existsSync(join(root, ".dockerignore")) && docs["docs/ALIBABA_CLOUD_DEPLOYMENT.md"].includes("/health"),
     "Dockerfile, secret exclusion and health contract must exist before external deployment",
   );
-
   const publicDocs = Object.entries(docs).filter(([file]) => !file.includes("legacy"));
   const staleUrlHits = publicDocs.filter(([, text]) => /temporary-prompt|claim-deployment/i.test(text)).map(([file]) => file);
   add("no temporary hosted URL is presented as a release entry", staleUrlHits.length === 0, staleUrlHits.join(", "));
@@ -398,6 +405,15 @@ function documentationChecks(mode) {
     ["Demo 20", /Demo[\s\S]{0,40}20/i.test(scoreDoc) && /演示[\s\S]{0,40}20/.test(scoreDoc)],
   ];
   for (const [name, ok] of scoreAnchors) add(`official score dimension documented: ${name}`, ok, "expected 30 / 30 / 20 / 20 alignment");
+  const statuses = new Set(["TRACKED_REPRODUCIBLE", "LOCAL_PRESENT_IGNORED", "HUMAN_EXTERNAL", "WAIVED"]);
+  const rubric = evidenceContract?.rubric;
+  const dimensionsMatch = rubric && rubric.Innovation?.max === 30 && rubric.Feasibility?.max === 30 && rubric.Qoder?.max === 20 && rubric.Demo?.max === 20;
+  add("single score/evidence contract has the official dimensions", Boolean(dimensionsMatch), "docs/JUDGE_EVIDENCE.json must define 30 / 30 / 20 / 20");
+  add("single score/evidence contract uses only allowed evidence statuses", Array.isArray(evidenceContract?.evidence) && evidenceContract.evidence.every((item) => statuses.has(item.status)), "use TRACKED_REPRODUCIBLE / LOCAL_PRESENT_IGNORED / HUMAN_EXTERNAL / WAIVED");
+  add("Qoder external provenance is not promoted by local artifacts", evidenceContract?.evidence?.some((item) => item.id === "qoder-session-quest-canvas" && item.status === "HUMAN_EXTERNAL") && evidenceContract?.evidence?.some((item) => item.id === "tracked-submission-visual-assets" && item.status === "TRACKED_REPRODUCIBLE") && evidenceContract?.evidence?.some((item) => item.id === "local-qoder-repowiki" && item.status === "LOCAL_PRESENT_IGNORED"), "product visuals may be tracked, while Qoder session provenance remains HUMAN_EXTERNAL and the IDE RepoWiki remains LOCAL_PRESENT_IGNORED");
+  const videoEvidence = evidenceContract?.evidence?.find((item) => item.id === "video-recording");
+  const videoGap = evidenceContract?.gapClosures?.find((item) => item.id === "video-recording");
+  add("WAIVED video has zero scored-gap effect", videoEvidence?.status === "WAIVED" && videoGap?.status === "WAIVED" && videoGap?.points === 0, "video-recording must remain WAIVED and never contribute +N to the score gap");
   return checks;
 }
 

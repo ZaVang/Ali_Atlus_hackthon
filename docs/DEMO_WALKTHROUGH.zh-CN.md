@@ -14,9 +14,9 @@ PVG → KUL → SIN 是本产品的**第二个现场案例**：2026-08-24 从 AT
 | --- | --- | --- |
 | 0:00–0:15 | 打开 `Connection Integrity`，停在 hero 和价值卡 | “Seattle 的经历说明：合法中转不一定是好选择。我们不做黑盒误机概率，而是让用户购买前看见时间适配、票务保障和替代方案；LLM 只理解和表达，不排序、订票或执行。” |
 | 0:15–0:35 | 展示 `PVG → KUL → SIN` 两张卡 | “这是第二个现场案例，不是 Seattle 的同一行程。115 分钟 / $133.91 与 185 分钟 / $148.10 是 ATRIP Sandbox snapshot；本次用 mock 回放，不说成当前库存。” |
-| 0:35–1:05 | 选短卡，点击 `Ask agent which itinerary to choose`，展开 `Agent trace / How this judgment was made` | “live 时是最多两轮的官方证据检索；mock 时明确写 `Demo agent fixture`。来源层级、轮次、Policy entry、Result origin 都可见；时间适配和 ticket protection 分开。” |
+| 0:35–1:05 | 选短卡，点击 `Check transfer evidence with Agent`，展开具名 baseline 的 `Agent evidence / How this judgment was made` | “Agent 只检查并解释证据；确定性比较选择最终候选。live 时是最多两轮的官方证据检索；mock 时明确写 `Demo agent fixture`。来源层级、轮次、Policy entry、Result origin 都可见；时间适配和 ticket protection 只属于具名 baseline。” |
 | 1:05–1:20 | 指向 `Policy entry` 与 60 + 90 行 | “60 + 90 来自已注册的 KUL/AirAsia policy entry，不是所有机场的硬编码规则。无匹配策略会走 no-policy path。” |
-| 1:20–1:40 | 点击 `Use recommended itinerary` | “这是 traveller consent gate。没有明确同意，行程不会进入航司观察；这里不创建 booking。” |
+| 1:20–1:40 | 点击 `Use deterministic itinerary` | “这是 traveller consent gate。确定性比较选择的行程只有在明确同意后才进入航司观察；这里不创建 booking。” |
 | 1:40–2:00 | 打开 `Airline: intervene after an event` | “这里接收同一条已选行程。默认值可以用于脚本回放，画面会标为 `default demo itinerary` 或 traveller-selected itinerary。” |
 | 2:00–2:28 | 点击 `Run scenario`，展示 +60 分钟、55 分钟剩余、insufficient 和提案 | “这是确定性的延误回放（delay replay）：+60 让 115 变成 55，低于 60 分钟公开下限，系统起草需同意的替代方案。`Simulated operational event` 说明没有接实时航班动态。” |
 | 2:28–2:40 | 展示 `docs/QODER_USAGE.md`、`npm run judge-preflight` 输出和 deliberate-failure test | “Qoder evidence 有会话、Quest、Canvas、对抗审计和验收索引；preflight 对故意缺失的 provenance 文案会报 `FAIL`，不是只做截图。” |

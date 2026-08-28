@@ -4,7 +4,7 @@ This is the authoritative product contract for the current main demo. Earlier Jo
 
 ## Product promise
 
-**Sellable is not the same as protected.** Before purchase, the agent tells a traveller which of two available itineraries it would choose, based on connection-time fit and researched KUL transfer evidence. It reports ticket protection separately, rather than mistaking an absent PNR/Fly-Thru flag for a claim that the connection time is inadequate. After purchase, an airline can recheck that same connection when an operational event reduces its margin, then prepare a consent-based alternative.
+**Sellable is not the same as protected.** Before purchase, a deterministic comparison binds the chosen itinerary to its schedule, fare, and published policy floor; the Agent supplies evidence and explanation only. It reports ticket protection separately, rather than mistaking an absent PNR/Fly-Thru flag for a claim that the connection time is inadequate. After purchase, the product replays that same comparison against a simulated operational event and can prepare a consent-based proposal.
 
 The product deliberately does **not** claim a calibrated misconnection probability, an airport queue forecast, or a real-time flight-status feed.
 
@@ -33,7 +33,7 @@ The product keeps two distinct facts visible. Neither is a calibrated probabilit
 | `Connection fit: likely comfortable` | Meets 60 minutes and leaves at least 90 additional planning minutes, unless route-specific research contradicts it | A transparent planning judgment, not an OTP-derived guarantee. |
 | `Ticket protection: confirmed / not confirmed` | Confirmed only when the supplied offer proves eligible single-booking / Fly-Thru protection | A separate booking-contract fact. An absent ATRIP flag must not downgrade time fit. |
 
-The 90-minute planning buffer is deliberately visible in the UI. It is a product heuristic for this demo, not a historical calibration claim. The LLM searches public official and community evidence for KUL terminal and transfer context, compares the two supplied times and fares, then returns one recommendation. Evidence search is bounded at two rounds: when the first round finds no relevant official source, the agent reformulates the official query and searches exactly once more; the round count and the retry query are disclosed in the UI. If no official evidence is found after both rounds, the run fails closed instead of assessing (a disclosed fallback policy input may substitute only where explicitly labelled as such). It may not invent a baggage-through flag, PNR, MCT, probability or airline commitment.
+The 90-minute planning buffer is deliberately visible in the UI. It is a product heuristic for this demo, not a historical calibration claim. The LLM searches public official and community evidence for KUL terminal and transfer context, then returns explanation and evidence only; it does not own the candidate. The deterministic comparison produces one named recommendation and its receipt. Evidence search is bounded at two rounds: when the first round finds no relevant official source, the agent reformulates the official query and searches exactly once more; the round count and the retry query are disclosed in the UI. If no official evidence is found after both rounds, the run fails closed instead of assessing (a disclosed fallback policy input may substitute only where explicitly labelled as such). It may not invent a baggage-through flag, PNR, MCT, probability or airline commitment.
 
 ## Live itinerary chooser
 
@@ -49,15 +49,15 @@ The traveller may choose `Comfortable connection`, `Lowest total fare`, or `Earl
 
 1. Show the two ATRIP-derived options.
 2. Ask the Connection Integrity Agent to compare them, using one official and one community research query for KUL / AirAsia transfer context.
-3. Show a decision first: 115 minutes is `tight` (55 minutes above the public minimum); 185 minutes is `likely comfortable` (125 minutes above it). The agent recommends the 185-minute choice when its $14.19 premium is acceptable.
+3. Show the deterministic decision first: `D73331 + AK707` is the 185-minute recommendation. Its Connection Resilience Receipt binds the $14.19 premium and +70-minute buffer to those flights; in a +60-minute deterministic replay/counterfactual it leaves 125 minutes while `D73331 + AK727` leaves 55 against the 60-minute published floor.
 4. Separately show `Ticket protection: not confirmed`, because ATRIP did not return a single-PNR / Fly-Thru / baggage-through flag. This is a disclosure, not a false claim that 185 minutes is inadequate.
 
 ### Airline: after an operational event
 
-1. The traveller explicitly carries the Agent-recommended itinerary into the airline watch. If they skip this, the page labels the 115-minute route as a default demo itinerary.
+1. The traveller explicitly carries the deterministic result into the airline watch. The Agent has checked and explained baseline evidence only. If they skip this, the page labels the 115-minute route as a default demo itinerary.
 2. Inject a clearly labelled **simulated inbound delay of 60 minutes**.
 3. For the 115-minute route, remaining margin becomes 55 minutes, below the published 60-minute rule; the policy returns **Connection fit: insufficient**.
-4. The agent prepares the alternate routing as a proposal.
+4. The deterministic replay prepares the alternate routing as a consent-gated proposal; it does not claim a completed recovery.
 5. Recording an offer is a demo action; the traveller must still review and accept it.
 
 ## Acceptance checks
@@ -65,7 +65,7 @@ The traveller may choose `Comfortable connection`, `Lowest total fare`, or `Earl
 - Every displayed fare and flight schedule carries ATRIP provenance.
 - Every public connection rule has a visible source link.
 - No screen shows an uncalibrated probability. Time fit and ticket protection are always presented separately.
-- Every agent recommendation names the selected or alternative itinerary and states the schedule / fare trade-off.
+- Every Agent evidence panel names its baseline itinerary and scheduled minutes; the deterministic Receipt separately names the final candidate and schedule / fare trade-off.
 - The live chooser never ranks or auto-selects a pair below the disclosed 60-minute screening floor, and labels every assembled pair as an independent self-transfer.
 - LLM output is labelled `Agent-generated · <model>` only after a live provider succeeds; otherwise it is labelled `Demo agent fixture`.
 - The delay is labelled simulated until an authorized real-time flight-status source is integrated.
